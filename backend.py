@@ -19,6 +19,10 @@ def save_schedule(data):
 def get_schedule():
     return jsonify(load_schedule())
 
+@app.route('/test')
+def test_route():
+    return "Admin routes are working! If you see this, the new code is deployed."
+
 @app.route('/admin')
 def admin_page():
     # Very basic password check via query parameter for now
