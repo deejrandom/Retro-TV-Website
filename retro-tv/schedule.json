@@ -1,0 +1,19 @@
+{
+  "vhf": [
+    { "id": "home",     "name": "HOME",          "schedule": "Welcome message" },
+    { "id": "writing",  "name": "WRITING",       "schedule": "Random Encounters" },
+    { "id": "games",    "name": "GAMES",         "schedule": "Retro gaming hub" },
+    { "id": "pixelart", "name": "PIXEL ART",     "schedule": "Pixel Art Galleries" },
+    { "id": "films",    "name": "FILMS",         "schedule": "Film related content" },
+    { "id": "tv",       "name": "TV",            "schedule": "TV related content" },
+    { "id": "where",    "name": "WHERE CAN YOU FIND ME?", "schedule": "Social links" }
+  ],
+  "uhf": [
+    { "id": "uhf1", "name": "CARTOONS", "schedule": "Public Domain Cartoons" },
+    { "id": "uhf2", "name": "CARTOONS", "schedule": "More Public Domain Cartoons" },
+    { "id": "uhf3", "name": "TV SHOWS", "schedule": "Classic Public Domain TV" },
+    { "id": "uhf4", "name": "TV SHOWS", "schedule": "More Classic TV" },
+    { "id": "uhf5", "name": "FILMS",    "schedule": "Double Indemnity - All day" },
+    { "id": "uhf6", "name": "FILMS",    "schedule": "More Public Domain Films" }
+  ]
+}
