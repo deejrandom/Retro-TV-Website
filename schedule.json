@@ -1,0 +1,36 @@
+{
+  "vhf": [
+    { "id": "home",     "name": "HOME",          "schedule": "Welcome message" },
+    { "id": "writing",  "name": "WRITING",       "schedule": "Random Encounters" },
+    { "id": "games",    "name": "GAMES",         "schedule": "Retro gaming hub" },
+    { "id": "pixelart", "name": "PIXEL ART",     "schedule": "Pixel Art Galleries" },
+    { "id": "films",    "name": "FILMS",         "schedule": "Film related content" },
+    { "id": "tv",       "name": "TV",            "schedule": "TV related content" },
+    { "id": "where",    "name": "WHERE CAN YOU FIND ME?", "schedule": "Social links" }
+  ],
+  "uhf": [
+    {
+      "id": "uhf1",
+      "name": "CARTOONS",
+      "schedule": "Public Domain Cartoons"
+    },
+    {
+      "id": "uhf5",
+      "name": "FILMS",
+      "schedule": "Double Indemnity - All day",
+      "content": {
+        "type": "embed",
+        "html": "<iframe src=\"https://archive.org/embed/double-indemnity-1944-restored-movie-720p-hd\" width=\"100%\" height=\"320\" frameborder=\"0\" allowfullscreen></iframe>"
+      }
+    },
+    {
+      "id": "uhf6",
+      "name": "FILMS",
+      "schedule": "Another Public Domain Movie",
+      "content": {
+        "type": "text",
+        "html": "<p>More great public domain films coming soon...</p>"
+      }
+    }
+  ]
+}

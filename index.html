@@ -209,7 +209,9 @@
         async function loadSchedule() {
             try {
                 const res = await fetch('https://retro-tv-website.onrender.com/api/schedule');
+                scheduleData = await res.json();
             } catch (e) {
+                console.error("Using fallback schedule data");
                 scheduleData = {
                     vhf: [
                         { id: "home", name: "HOME", schedule: "Welcome message" },
@@ -225,7 +227,8 @@
                         { id: "uhf2", name: "CARTOONS", schedule: "More Public Domain Cartoons" },
                         { id: "uhf3", name: "TV SHOWS", schedule: "Classic Public Domain TV" },
                         { id: "uhf4", name: "TV SHOWS", schedule: "More Classic TV" },
-                        { id: "uhf5", name: "FILMS", schedule: "Double Indemnity - All day" },
+                        { id: "uhf5", name: "FILMS", schedule: "Double Indemnity - All day", 
+                          content: { type: "embed", html: "<iframe src='https://archive.org/embed/double-indemnity-1944-restored-movie-720p-hd' width='100%' height='320' frameborder='0' allowfullscreen></iframe>" } },
                         { id: "uhf6", name: "FILMS", schedule: "More Public Domain Films" }
                     ]
                 };
@@ -241,16 +244,26 @@
                 const div = document.createElement('div');
                 div.id = ch.id;
                 div.className = 'section vhf-section';
-                div.innerHTML = `<h2 class="channel-title">VHF ${i} • ${ch.name}</h2><p>${ch.schedule}</p>`;
+                const channelNum = i + 2;
+                div.innerHTML = `<h2 class="channel-title">VHF ${channelNum} • ${ch.name}</h2><p>${ch.schedule}</p>`;
                 container.appendChild(div);
             });
 
-            // Create UHF channels
+            // Create UHF channels (with dynamic content)
             scheduleData.uhf.forEach((ch, i) => {
                 const div = document.createElement('div');
                 div.id = ch.id;
                 div.className = 'section uhf-section';
-                div.innerHTML = `<h2 class="channel-title">UHF ${i} • ${ch.name}</h2><p>${ch.schedule}</p>`;
+                const channelNum = i + 2;
+
+                let contentHTML = `<p>${ch.schedule}</p>`;
+                if (ch.content) {
+                    if (ch.content.type === "embed" || ch.content.type === "text") {
+                        contentHTML = ch.content.html;
+                    }
+                }
+
+                div.innerHTML = `<h2 class="channel-title">UHF ${channelNum} • ${ch.name}</h2>${contentHTML}`;
                 container.appendChild(div);
             });
 
@@ -262,10 +275,16 @@
             vhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
             vhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;">MONDAY • JUNE 15, 2026</div>`;
             vhtml += `<div class="guide-grid">`;
+
+            vhtml += `<div class="guide-entry guide-channel-num" onclick="showVHFGuide()">VHF 0</div>`;
+            vhtml += `<div class="guide-entry" onclick="showVHFGuide()">VHF GUIDE</div>`;
+
             scheduleData.vhf.forEach((ch, i) => {
-                vhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToVHF(${i})">VHF ${i}</div>`;
+                const channelNum = i + 2;
+                vhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToVHF(${i})">VHF ${channelNum}</div>`;
                 vhtml += `<div class="guide-entry" onclick="jumpToVHF(${i})">${ch.name}</div>`;
             });
+
             vhtml += `</div></div>`;
             vGuide.innerHTML = vhtml;
             container.appendChild(vGuide);
@@ -278,29 +297,21 @@
             uhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
             uhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;">MONDAY • JUNE 15, 2026</div>`;
             uhtml += `<div class="guide-grid">`;
+
+            uhtml += `<div class="guide-entry guide-channel-num" onclick="showUHFGuide()">UHF 0</div>`;
+            uhtml += `<div class="guide-entry" onclick="showUHFGuide()">UHF GUIDE</div>`;
+
             scheduleData.uhf.forEach((ch, i) => {
+                const channelNum = i + 2;
                 let displayName = ch.schedule;
                 if (ch.id === 'uhf5') displayName = "Double Indemnity - All day";
-                uhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToUHF(${i})">UHF ${i}</div>`;
+                uhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToUHF(${i})">UHF ${channelNum}</div>`;
                 uhtml += `<div class="guide-entry" onclick="jumpToUHF(${i})">${displayName}</div>`;
             });
+
             uhtml += `</div></div>`;
             uGuide.innerHTML = uhtml;
             container.appendChild(uGuide);
-
-            // Double Indemnity embed
-            const uhf5 = document.getElementById('uhf5');
-            if (uhf5) {
-                uhf5.innerHTML = `
-                    <h2 class="channel-title">UHF ${i + 1 • FILMS</h2>
-                    <div style="margin-bottom:10px;">
-                        <strong>Double Indemnity</strong> (1944, Restored)<br>
-                        <span style="color:#ffcc00; font-size:11px;">Film Noir • IMDb: 8.3</span>
-                    </div>
-                    <iframe src="https://archive.org/embed/double-indemnity-1944-restored-movie-720p-hd" 
-                            width="100%" height="320" frameborder="0" allowfullscreen></iframe>
-                `;
-            }
 
             // Pixel Art gallery
             const pixel = document.getElementById('pixelart');
@@ -321,18 +332,9 @@
                 gallery.innerHTML = `
                     <h3 style="color:var(--neon-pink); margin:15px 0 10px;">FINAL FANTASY GALLERY</h3>
                     <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 24px; justify-items: center;">
-                        <div class="game-card" onclick="window.open('black-mage-nes.png','_blank')">
-                            <img src="black-mage-nes.png" alt="Black Mage" style="width:100%; height:130px; object-fit:contain;">
-                            <strong>Black Mage</strong>
-                        </div>
-                        <div class="game-card" onclick="window.open('redmage-nes.png','_blank')">
-                            <img src="redmage-nes.png" alt="Red Mage" style="width:100%; height:130px; object-fit:contain;">
-                            <strong>Red Mage</strong>
-                        </div>
-                        <div class="game-card" onclick="window.open('white-mage-nes.png','_blank')">
-                            <img src="white-mage-nes.png" alt="White Mage" style="width:100%; height:130px; object-fit:contain;">
-                            <strong>White Mage</strong>
-                        </div>
+                        <div class="game-card" onclick="window.open('black-mage-nes.png','_blank')"><img src="black-mage-nes.png" alt="Black Mage" style="width:100%; height:130px; object-fit:contain;"><strong>Black Mage</strong></div>
+                        <div class="game-card" onclick="window.open('redmage-nes.png','_blank')"><img src="redmage-nes.png" alt="Red Mage" style="width:100%; height:130px; object-fit:contain;"><strong>Red Mage</strong></div>
+                        <div class="game-card" onclick="window.open('white-mage-nes.png','_blank')"><img src="white-mage-nes.png" alt="White Mage" style="width:100%; height:130px; object-fit:contain;"><strong>White Mage</strong></div>
                     </div>
                 `;
                 pixel.appendChild(gallery);
@@ -344,6 +346,16 @@
             if (g) g.style.display = (g.style.display === 'block') ? 'none' : 'block';
         }
 
+        function showVHFGuide() {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById('vhfguide').classList.add('active');
+        }
+
+        function showUHFGuide() {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById('uhfguide').classList.add('active');
+        }
+
         function updateDisplay() {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
             const st = document.getElementById('staticOverlay');
@@ -353,7 +365,7 @@
                 if (vhfIndex === 0) {
                     document.getElementById('vhfguide').classList.add('active');
                 } else {
-                    const ch = scheduleData.vhf[vhfIndex];
+                    const ch = scheduleData.vhf[vhfIndex - 1];
                     if (ch && document.getElementById(ch.id)) {
                         document.getElementById(ch.id).classList.add('active');
                     }
@@ -364,7 +376,7 @@
                 if (uhfIndex === 0) {
                     document.getElementById('uhfguide').classList.add('active');
                 } else {
-                    const ch = scheduleData.uhf[uhfIndex];
+                    const ch = scheduleData.uhf[uhfIndex - 1];
                     if (ch && document.getElementById(ch.id)) {
                         document.getElementById(ch.id).classList.add('active');
                     }
@@ -393,7 +405,7 @@
             if (lastMode !== 'vhf') {
                 vhfIndex = 0;
             } else {
-                vhfIndex = (vhfIndex + 1) % scheduleData.vhf.length;
+                vhfIndex = (vhfIndex + 1) % (scheduleData.vhf.length + 1);
             }
             currentMode = 'vhf';
             lastMode = 'vhf';
@@ -409,7 +421,7 @@
             if (lastMode !== 'uhf') {
                 uhfIndex = 0;
             } else {
-                uhfIndex = (uhfIndex + 1) % scheduleData.uhf.length;
+                uhfIndex = (uhfIndex + 1) % (scheduleData.uhf.length + 1);
             }
             currentMode = 'uhf';
             lastMode = 'uhf';
@@ -422,7 +434,7 @@
         async function init() {
             await loadSchedule();
             generateContent();
-            document.getElementById('vhfguide').classList.add('active');
+            showVHFGuide();
             lastMode = 'vhf';
         }
 
