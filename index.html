@@ -208,8 +208,7 @@
 
         async function loadSchedule() {
             try {
-                const res = await fetch('http://localhost:5000/api/schedule');
-                scheduleData = await res.json();
+                const res = await fetch('https://retro-tv-website.onrender.com/api/schedule');
             } catch (e) {
                 scheduleData = {
                     vhf: [
