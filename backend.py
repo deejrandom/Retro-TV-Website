@@ -2,6 +2,10 @@ from flask import Flask, jsonify
 
 app = Flask(__name__)
 
+@app.route('/')
+def home():
+    return "App is running!"
+
 @app.route('/api/schedule')
 def get_schedule():
     return jsonify({"message": "API is working"})
