@@ -43,13 +43,6 @@
             flex-direction: column;
         }
         
-        @media (min-width: 700px) {
-            .tv-frame {
-                flex-direction: row;
-                padding: 28px;
-            }
-        }
-        
         .screen {
             flex: 1;
             background: #000;
@@ -77,11 +70,6 @@
             animation: scanline 4s linear infinite;
         }
         
-        @keyframes scanline {
-            0% { transform: translateY(-100%); }
-            100% { transform: translateY(100%); }
-        }
-        
         .content { 
             flex: 1; 
             padding: 20px; 
@@ -107,15 +95,6 @@
             justify-content: center;
             gap: 25px;
             margin-top: 15px;
-        }
-        
-        @media (min-width: 700px) {
-            .right-panel {
-                flex-direction: column;
-                margin-top: 0;
-                margin-left: 22px;
-                justify-content: center;
-            }
         }
         
         .knob {
@@ -182,7 +161,6 @@
     <div class="tv-frame">
         <div class="screen">
             <div class="content"></div>
-            
             <div class="static" id="staticOverlay"></div>
             <div class="no-signal-text" id="noSignalText">NO SIGNAL<br><span style="font-size:11px;">CHANNEL OFF AIR</span></div>
         </div>
@@ -204,33 +182,18 @@
         let vhfIndex = 0;
         let uhfIndex = 0;
         let lastMode = 'vhf';
-        let scheduleData = { vhf: [], uhf: [] };
+        let scheduleData = { vhf: [], uhf: [], guide_date: "PROGRAM GUIDE" };
 
         async function loadSchedule() {
             try {
-                const res = await fetch('https://retro-tv-website.onrender.com/api/schedule');
+                const res = await fetch('https://retro-tv-backend.onrender.com/api/schedule');
                 scheduleData = await res.json();
             } catch (e) {
-                console.error("Using fallback schedule data");
+                console.error("Using fallback data");
                 scheduleData = {
-                    vhf: [
-                        { id: "home", name: "HOME", schedule: "Welcome message" },
-                        { id: "writing", name: "WRITING", schedule: "Random Encounters" },
-                        { id: "games", name: "GAMES", schedule: "Retro gaming hub" },
-                        { id: "pixelart", name: "PIXEL ART", schedule: "Pixel Art Galleries" },
-                        { id: "films", name: "FILMS", schedule: "Film related content" },
-                        { id: "tv", name: "TV", schedule: "TV related content" },
-                        { id: "where", name: "WHERE CAN YOU FIND ME?", schedule: "Social links" }
-                    ],
-                    uhf: [
-                        { id: "uhf1", name: "CARTOONS", schedule: "Public Domain Cartoons" },
-                        { id: "uhf2", name: "CARTOONS", schedule: "More Public Domain Cartoons" },
-                        { id: "uhf3", name: "TV SHOWS", schedule: "Classic Public Domain TV" },
-                        { id: "uhf4", name: "TV SHOWS", schedule: "More Classic TV" },
-                        { id: "uhf5", name: "FILMS", schedule: "Double Indemnity - All day", 
-                          content: { type: "embed", html: "<iframe src='https://archive.org/embed/double-indemnity-1944-restored-movie-720p-hd' width='100%' height='320' frameborder='0' allowfullscreen></iframe>" } },
-                        { id: "uhf6", name: "FILMS", schedule: "More Public Domain Films" }
-                    ]
+                    guide_date: "TUESDAY • JUNE 17, 2026",
+                    vhf: [ /* fallback data */ ],
+                    uhf: [ /* fallback data */ ]
                 };
             }
         }
@@ -249,7 +212,7 @@
                 container.appendChild(div);
             });
 
-            // Create UHF channels (with dynamic content)
+            // Create UHF channels
             scheduleData.uhf.forEach((ch, i) => {
                 const div = document.createElement('div');
                 div.id = ch.id;
@@ -258,9 +221,7 @@
 
                 let contentHTML = `<p>${ch.schedule}</p>`;
                 if (ch.content) {
-                    if (ch.content.type === "embed" || ch.content.type === "text") {
-                        contentHTML = ch.content.html;
-                    }
+                    contentHTML = ch.content.html;
                 }
 
                 div.innerHTML = `<h2 class="channel-title">UHF ${channelNum} • ${ch.name}</h2>${contentHTML}`;
@@ -273,18 +234,9 @@
             vGuide.className = 'section vhf-section';
             let vhtml = `<h2 class="channel-title">VHF 0 • CHANNEL GUIDE</h2>`;
             vhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
-            vhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;">MONDAY • JUNE 15, 2026</div>`;
+            vhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;">${scheduleData.guide_date}</div>`;
             vhtml += `<div class="guide-grid">`;
-
-            vhtml += `<div class="guide-entry guide-channel-num" onclick="showVHFGuide()">VHF 0</div>`;
-            vhtml += `<div class="guide-entry" onclick="showVHFGuide()">VHF GUIDE</div>`;
-
-            scheduleData.vhf.forEach((ch, i) => {
-                const channelNum = i + 2;
-                vhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToVHF(${i})">VHF ${channelNum}</div>`;
-                vhtml += `<div class="guide-entry" onclick="jumpToVHF(${i})">${ch.name}</div>`;
-            });
-
+            // ... (guide rows)
             vhtml += `</div></div>`;
             vGuide.innerHTML = vhtml;
             container.appendChild(vGuide);
@@ -295,150 +247,17 @@
             uGuide.className = 'section uhf-section';
             let uhtml = `<h2 class="channel-title">UHF 0 • PROGRAMMING GUIDE</h2>`;
             uhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
-            uhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;">MONDAY • JUNE 15, 2026</div>`;
+            uhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;">${scheduleData.guide_date}</div>`;
             uhtml += `<div class="guide-grid">`;
-
-            uhtml += `<div class="guide-entry guide-channel-num" onclick="showUHFGuide()">UHF 0</div>`;
-            uhtml += `<div class="guide-entry" onclick="showUHFGuide()">UHF GUIDE</div>`;
-
-            scheduleData.uhf.forEach((ch, i) => {
-                const channelNum = i + 2;
-                let displayName = ch.schedule;
-                if (ch.id === 'uhf5') displayName = "Double Indemnity - All day";
-                uhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToUHF(${i})">UHF ${channelNum}</div>`;
-                uhtml += `<div class="guide-entry" onclick="jumpToUHF(${i})">${displayName}</div>`;
-            });
-
+            // ... (guide rows)
             uhtml += `</div></div>`;
             uGuide.innerHTML = uhtml;
             container.appendChild(uGuide);
 
-            // Pixel Art gallery
-            const pixel = document.getElementById('pixelart');
-            if (pixel) {
-                const ffBox = document.createElement('div');
-                ffBox.className = 'game-card';
-                ffBox.style.cssText = 'max-width:320px; margin:20px auto; cursor:pointer;';
-                ffBox.onclick = () => toggleGallery('finalfantasy');
-                ffBox.innerHTML = `
-                    <img src="ff-Logo-NES.webp" alt="Final Fantasy" style="width:100%; height:110px; image-rendering:pixelated; border:3px solid var(--neon-pink);">
-                    <strong style="display:block; margin-top:12px; color:var(--neon-pink);">FINAL FANTASY</strong>
-                `;
-                pixel.appendChild(ffBox);
-
-                const gallery = document.createElement('div');
-                gallery.id = 'finalfantasy-gallery';
-                gallery.style.display = 'none';
-                gallery.innerHTML = `
-                    <h3 style="color:var(--neon-pink); margin:15px 0 10px;">FINAL FANTASY GALLERY</h3>
-                    <div style="display:grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 24px; justify-items: center;">
-                        <div class="game-card" onclick="window.open('black-mage-nes.png','_blank')"><img src="black-mage-nes.png" alt="Black Mage" style="width:100%; height:130px; object-fit:contain;"><strong>Black Mage</strong></div>
-                        <div class="game-card" onclick="window.open('redmage-nes.png','_blank')"><img src="redmage-nes.png" alt="Red Mage" style="width:100%; height:130px; object-fit:contain;"><strong>Red Mage</strong></div>
-                        <div class="game-card" onclick="window.open('white-mage-nes.png','_blank')"><img src="white-mage-nes.png" alt="White Mage" style="width:100%; height:130px; object-fit:contain;"><strong>White Mage</strong></div>
-                    </div>
-                `;
-                pixel.appendChild(gallery);
-            }
+            // Pixel Art (keep your existing code)
         }
 
-        function toggleGallery(id) {
-            const g = document.getElementById(id + '-gallery');
-            if (g) g.style.display = (g.style.display === 'block') ? 'none' : 'block';
-        }
-
-        function showVHFGuide() {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            document.getElementById('vhfguide').classList.add('active');
-        }
-
-        function showUHFGuide() {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            document.getElementById('uhfguide').classList.add('active');
-        }
-
-        function updateDisplay() {
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-            const st = document.getElementById('staticOverlay');
-            const tx = document.getElementById('noSignalText');
-
-            if (currentMode === 'vhf') {
-                if (vhfIndex === 0) {
-                    document.getElementById('vhfguide').classList.add('active');
-                } else {
-                    const ch = scheduleData.vhf[vhfIndex - 1];
-                    if (ch && document.getElementById(ch.id)) {
-                        document.getElementById(ch.id).classList.add('active');
-                    }
-                }
-                st.style.display = 'none';
-                tx.style.display = 'none';
-            } else {
-                if (uhfIndex === 0) {
-                    document.getElementById('uhfguide').classList.add('active');
-                } else {
-                    const ch = scheduleData.uhf[uhfIndex - 1];
-                    if (ch && document.getElementById(ch.id)) {
-                        document.getElementById(ch.id).classList.add('active');
-                    }
-                }
-                st.style.display = 'block';
-                tx.style.display = 'block';
-            }
-        }
-
-        function jumpToVHF(index) {
-            currentMode = 'vhf';
-            vhfIndex = index;
-            updateDisplay();
-        }
-
-        function jumpToUHF(index) {
-            currentMode = 'uhf';
-            uhfIndex = index;
-            updateDisplay();
-        }
-
-        // Knobs
-        const vKnob = document.getElementById('vhfKnob');
-        let vRot = 0;
-        function nextVHF() {
-            if (lastMode !== 'vhf') {
-                vhfIndex = 0;
-            } else {
-                vhfIndex = (vhfIndex + 1) % (scheduleData.vhf.length + 1);
-            }
-            currentMode = 'vhf';
-            lastMode = 'vhf';
-            vRot = (vRot + 45) % 360;
-            vKnob.style.transform = `rotate(${vRot}deg)`;
-            updateDisplay();
-        }
-        vKnob.addEventListener('click', nextVHF);
-
-        const uKnob = document.getElementById('uhfKnob');
-        let uRot = 0;
-        function nextUHF() {
-            if (lastMode !== 'uhf') {
-                uhfIndex = 0;
-            } else {
-                uhfIndex = (uhfIndex + 1) % (scheduleData.uhf.length + 1);
-            }
-            currentMode = 'uhf';
-            lastMode = 'uhf';
-            uRot = (uRot + 45) % 360;
-            uKnob.style.transform = `rotate(${uRot}deg)`;
-            updateDisplay();
-        }
-        uKnob.addEventListener('click', nextUHF);
-
-        async function init() {
-            await loadSchedule();
-            generateContent();
-            showVHFGuide();
-            lastMode = 'vhf';
-        }
-
-        init();
+        // ... rest of your existing JavaScript (knobs, updateDisplay, etc.) ...
     </script>
 </body>
 </html>
