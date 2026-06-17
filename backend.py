@@ -29,7 +29,7 @@ def test():
 @app.route('/admin')
 def admin_page():
     password = request.args.get('password', '')
-    if password != ADMIN_PASSWORD:
+    if password != ADMIN_PASSWORD: MuffinBennett!987
         return "Unauthorized. Add ?password=yourpassword123 to the URL", 401
 
     schedule = load_schedule()
@@ -38,7 +38,7 @@ def admin_page():
 @app.route('/api/schedule/save', methods=['POST'])
 def save_schedule_api():
     password = request.args.get('password', '')
-    if password != ADMIN_PASSWORD: MuffinBennett!987
+    if password != ADMIN_PASSWORD:
         return jsonify({"error": "Unauthorized"}), 401
 
     new_data = request.get_json()
