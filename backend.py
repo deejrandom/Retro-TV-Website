@@ -4,7 +4,7 @@ import json
 app = Flask(__name__)
 
 # Change this to your own password
-ADMIN_PASSWORD = "yourpassword123"
+ADMIN_PASSWORD = "MuffinBennett!987"
 
 def load_schedule():
     with open('schedule.json', 'r') as f:
