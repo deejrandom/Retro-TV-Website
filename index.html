@@ -233,4 +233,130 @@
             scheduleData.vhf.forEach((ch, i) => {
                 const channelNum = i + 2;
                 vhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToVHF(${i})">VHF ${channelNum}</div>`;
-                vhtml += `<div class="guide-entry
+                vhtml += `<div class="guide-entry" onclick="jumpToVHF(${i})">${ch.name}</div>`;
+            });
+
+            vhtml += `</div></div>`;
+            vGuide.innerHTML = vhtml;
+            container.appendChild(vGuide);
+
+            // UHF Guide
+            const uGuide = document.createElement('div');
+            uGuide.id = 'uhfguide';
+            uGuide.className = 'section uhf-section';
+            let uhtml = `<h2 class="channel-title">UHF 0 • PROGRAMMING GUIDE</h2>`;
+            uhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
+            uhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;">MONDAY • JUNE 17, 2026</div>`;
+            uhtml += `<div class="guide-grid">`;
+
+            uhtml += `<div class="guide-entry guide-channel-num" onclick="showUHFGuide()">UHF 0</div>`;
+            uhtml += `<div class="guide-entry" onclick="showUHFGuide()">UHF GUIDE</div>`;
+
+            scheduleData.uhf.forEach((ch, i) => {
+                const channelNum = i + 2;
+                let displayName = ch.schedule;
+                uhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToUHF(${i})">UHF ${channelNum}</div>`;
+                uhtml += `<div class="guide-entry" onclick="jumpToUHF(${i})">${displayName}</div>`;
+            });
+
+            uhtml += `</div></div>`;
+            uGuide.innerHTML = uhtml;
+            container.appendChild(uGuide);
+        }
+
+        function showVHFGuide() {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById('vhfguide').classList.add('active');
+        }
+
+        function showUHFGuide() {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById('uhfguide').classList.add('active');
+        }
+
+        function updateDisplay() {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            const st = document.getElementById('staticOverlay');
+            const tx = document.getElementById('noSignalText');
+
+            if (currentMode === 'vhf') {
+                if (vhfIndex === 0) {
+                    document.getElementById('vhfguide').classList.add('active');
+                } else {
+                    const ch = scheduleData.vhf[vhfIndex - 1];
+                    if (ch && document.getElementById(ch.id)) {
+                        document.getElementById(ch.id).classList.add('active');
+                    }
+                }
+                st.style.display = 'none';
+                tx.style.display = 'none';
+            } else {
+                if (uhfIndex === 0) {
+                    document.getElementById('uhfguide').classList.add('active');
+                } else {
+                    const ch = scheduleData.uhf[uhfIndex - 1];
+                    if (ch && document.getElementById(ch.id)) {
+                        document.getElementById(ch.id).classList.add('active');
+                    }
+                }
+                st.style.display = 'block';
+                tx.style.display = 'block';
+            }
+        }
+
+        function jumpToVHF(index) {
+            currentMode = 'vhf';
+            vhfIndex = index;
+            updateDisplay();
+        }
+
+        function jumpToUHF(index) {
+            currentMode = 'uhf';
+            uhfIndex = index;
+            updateDisplay();
+        }
+
+        // Knobs
+        const vKnob = document.getElementById('vhfKnob');
+        let vRot = 0;
+        function nextVHF() {
+            if (lastMode !== 'vhf') {
+                vhfIndex = 0;
+            } else {
+                vhfIndex = (vhfIndex + 1) % (scheduleData.vhf.length + 1);
+            }
+            currentMode = 'vhf';
+            lastMode = 'vhf';
+            vRot = (vRot + 45) % 360;
+            vKnob.style.transform = `rotate(${vRot}deg)`;
+            updateDisplay();
+        }
+        vKnob.addEventListener('click', nextVHF);
+
+        const uKnob = document.getElementById('uhfKnob');
+        let uRot = 0;
+        function nextUHF() {
+            if (lastMode !== 'uhf') {
+                uhfIndex = 0;
+            } else {
+                uhfIndex = (uhfIndex + 1) % (scheduleData.uhf.length + 1);
+            }
+            currentMode = 'uhf';
+            lastMode = 'uhf';
+            uRot = (uRot + 45) % 360;
+            uKnob.style.transform = `rotate(${uRot}deg)`;
+            updateDisplay();
+        }
+        uKnob.addEventListener('click', nextUHF);
+
+        async function init() {
+            await loadSchedule();
+            generateContent();
+            showVHFGuide();
+            lastMode = 'vhf';
+        }
+
+        init();
+    </script>
+</body>
+</html>
