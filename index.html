@@ -40,7 +40,6 @@
             z-index: 2;
             padding: 22px;
             display: flex;
-            flex-direction: column;
         }
         
         .screen {
@@ -91,10 +90,13 @@
         }
         
         .right-panel {
+            width: 70px;
             display: flex;
+            flex-direction: column;
             justify-content: center;
-            gap: 25px;
-            margin-top: 15px;
+            gap: 30px;
+            margin-left: 20px;
+            align-items: center;
         }
         
         .knob {
@@ -103,7 +105,6 @@
             background: radial-gradient(circle at 30% 30%, #666, #222);
             border: 6px solid #111;
             border-radius: 50%;
-            margin: 0 auto;
             box-shadow: inset 0 0 12px #000, 0 0 14px var(--neon-green);
             position: relative;
             cursor: pointer;
@@ -166,6 +167,7 @@
             <div class="no-signal-text" id="noSignalText">NO SIGNAL<br><span style="font-size:11px;">CHANNEL OFF AIR</span></div>
         </div>
         
+        <!-- Knobs on the RIGHT SIDE -->
         <div class="right-panel">
             <div>
                 <div class="knob" id="vhfKnob"></div>
@@ -226,16 +228,13 @@
             vhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
             vhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;">MONDAY • JUNE 17, 2026</div>`;
             vhtml += `<div class="guide-grid">`;
-
             vhtml += `<div class="guide-entry guide-channel-num" onclick="showVHFGuide()">VHF 0</div>`;
             vhtml += `<div class="guide-entry" onclick="showVHFGuide()">VHF GUIDE</div>`;
-
             scheduleData.vhf.forEach((ch, i) => {
                 const channelNum = i + 2;
                 vhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToVHF(${i})">VHF ${channelNum}</div>`;
                 vhtml += `<div class="guide-entry" onclick="jumpToVHF(${i})">${ch.name}</div>`;
             });
-
             vhtml += `</div></div>`;
             vGuide.innerHTML = vhtml;
             container.appendChild(vGuide);
@@ -248,17 +247,14 @@
             uhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
             uhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;">MONDAY • JUNE 17, 2026</div>`;
             uhtml += `<div class="guide-grid">`;
-
             uhtml += `<div class="guide-entry guide-channel-num" onclick="showUHFGuide()">UHF 0</div>`;
             uhtml += `<div class="guide-entry" onclick="showUHFGuide()">UHF GUIDE</div>`;
-
             scheduleData.uhf.forEach((ch, i) => {
                 const channelNum = i + 2;
                 let displayName = ch.schedule;
                 uhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToUHF(${i})">UHF ${channelNum}</div>`;
                 uhtml += `<div class="guide-entry" onclick="jumpToUHF(${i})">${displayName}</div>`;
             });
-
             uhtml += `</div></div>`;
             uGuide.innerHTML = uhtml;
             container.appendChild(uGuide);
