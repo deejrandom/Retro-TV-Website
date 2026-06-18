@@ -1,108 +1,207 @@
 from flask import Flask, jsonify, request, render_template_string
 import json
+import os
 
 app = Flask(__name__)
 
-# Change this to your own password
-ADMIN_PASSWORD = "yourpassword123"
+# =====================
+# CONFIG
+# =====================
+ADMIN_PASSWORD = "MuffinBennett!987"   # Change this to something secure
+SCHEDULE_FILE = "schedule.json"
 
+# =====================
+# HELPER FUNCTIONS
+# =====================
 def load_schedule():
-    with open('schedule.json', 'r') as f:
-        return json.load(f)
+    if os.path.exists(SCHEDULE_FILE):
+        with open(SCHEDULE_FILE, "r") as f:
+            return json.load(f)
+    return {"vhf": [], "uhf": []}
 
 def save_schedule(data):
-    with open('schedule.json', 'w') as f:
+    with open(SCHEDULE_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
-@app.route('/')
-def home():
-    return "App is running!"
+# =====================
+# ROUTES
+# =====================
 
 @app.route('/api/schedule')
 def get_schedule():
-    return jsonify(load_schedule())
+    data = load_schedule()
+    return jsonify(data)
 
-@app.route('/test')
-def test():
-    return "Test route is working!"
-
-@app.route('/admin')
-def admin_page():
-    password = request.args.get('password', '')
-    if password != ADMIN_PASSWORD: MuffinBennett!987
-        return "Unauthorized. Add ?password=yourpassword123 to the URL", 401
-
-    schedule = load_schedule()
-    return render_template_string(ADMIN_TEMPLATE, schedule=schedule)
-
-@app.route('/api/schedule/save', methods=['POST'])
-def save_schedule_api():
-    password = request.args.get('password', '')
+@app.route('/api/schedule', methods=['POST'])
+def update_schedule():
+    password = request.args.get('password')
     if password != ADMIN_PASSWORD:
         return jsonify({"error": "Unauthorized"}), 401
 
     new_data = request.get_json()
-    save_schedule(new_data)
-    return jsonify({"success": True, "message": "Schedule saved successfully!"})
+    if not new_data:
+        return jsonify({"error": "No data provided"}), 400
 
-# Basic Admin HTML Template
-ADMIN_TEMPLATE = """
+    save_schedule(new_data)
+    return jsonify({"message": "Schedule updated successfully"})
+
+# =====================
+# ADMIN PAGE (Basic)
+# =====================
+ADMIN_HTML = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Admin Panel - Warren's Retro TV</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Retro TV</title>
     <style>
         body { font-family: Arial, sans-serif; margin: 40px; background: #f4f4f4; }
         h1 { color: #333; }
-        .channel { background: white; padding: 15px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        input, textarea { width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box; }
-        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        .section { margin-bottom: 40px; }
+        .channel-card {
+            background: white;
+            border: 1px solid #ccc;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+        }
+        .channel-card input, .channel-card textarea {
+            width: 100%;
+            padding: 8px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
         button:hover { background: #0056b3; }
     </style>
 </head>
 <body>
     <h1>Retro TV Admin Panel</h1>
-    <p><strong>Note:</strong> This is a basic version. We can improve it further.</p>
+    <p>Edit your channels below and click Save Changes.</p>
 
-    <form id="adminForm">
+    <div class="section">
         <h2>VHF Channels</h2>
-        {% for i, ch in enumerate(schedule.vhf) %}
-        <div class="channel">
-            <strong>Channel {{ i + 2 }}</strong><br>
-            Name: <input type="text" name="vhf_{{ i }}_name" value="{{ ch.name }}"><br>
-            Schedule: <input type="text" name="vhf_{{ i }}_schedule" value="{{ ch.schedule }}"><br>
-        </div>
-        {% endfor %}
+        <div id="vhf-channels"></div>
+    </div>
 
+    <div class="section">
         <h2>UHF Channels</h2>
-        {% for i, ch in enumerate(schedule.uhf) %}
-        <div class="channel">
-            <strong>Channel {{ i + 2 }}</strong><br>
-            Name: <input type="text" name="uhf_{{ i }}_name" value="{{ ch.name }}"><br>
-            Schedule: <input type="text" name="uhf_{{ i }}_schedule" value="{{ ch.schedule }}"><br>
-            Content (optional):<br>
-            <textarea name="uhf_{{ i }}_content" rows="3">{{ ch.content.html if ch.content else '' }}</textarea>
-        </div>
-        {% endfor %}
+        <div id="uhf-channels"></div>
+    </div>
 
-        <button type="button" onclick="saveChanges()">Save All Changes</button>
-    </form>
+    <button onclick="saveChanges()">Save Changes</button>
 
     <script>
-        async function saveChanges() {
-            const form = document.getElementById('adminForm');
-            const formData = new FormData(form);
-            
-            // Build the data object to send
-            let newSchedule = { vhf: [], uhf: [] };
+        let scheduleData = {};
 
-            // This is a simplified version - we'll improve it
-            alert("Save feature is being improved. For now, manually edit schedule.json if needed.");
+        async function loadSchedule() {
+            const res = await fetch('/api/schedule');
+            scheduleData = await res.json();
+
+            renderChannels('vhf', scheduleData.vhf || []);
+            renderChannels('uhf', scheduleData.uhf || []);
         }
+
+        function renderChannels(type, channels) {
+            const container = document.getElementById(type + '-channels');
+            container.innerHTML = '';
+
+            channels.forEach((channel, index) => {
+                const div = document.createElement('div');
+                div.className = 'channel-card';
+                div.innerHTML = `
+                    <strong>Channel ${index + 2}</strong><br>
+                    <label>Name:</label>
+                    <input type="text" id="${type}-name-${index}" value="${channel.name || ''}"><br>
+                    <label>Schedule / Content:</label>
+                    <textarea id="${type}-schedule-${index}" rows="3">${channel.schedule || ''}</textarea>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        async function saveChanges() {
+            // Collect VHF data
+            const vhf = [];
+            const vhfContainer = document.getElementById('vhf-channels');
+            const vhfCards = vhfContainer.children;
+
+            for (let i = 0; i < vhfCards.length; i++) {
+                const name = document.getElementById(`vhf-name-${i}`).value;
+                const schedule = document.getElementById(`vhf-schedule-${i}`).value;
+                vhf.push({
+                    id: scheduleData.vhf[i].id,
+                    name: name,
+                    schedule: schedule
+                });
+            }
+
+            // Collect UHF data
+            const uhf = [];
+            const uhfContainer = document.getElementById('uhf-channels');
+            const uhfCards = uhfContainer.children;
+
+            for (let i = 0; i < uhfCards.length; i++) {
+                const name = document.getElementById(`uhf-name-${i}`).value;
+                const schedule = document.getElementById(`uhf-schedule-${i}`).value;
+                uhf.push({
+                    id: scheduleData.uhf[i].id,
+                    name: name,
+                    schedule: schedule
+                });
+            }
+
+            const updatedData = {
+                vhf: vhf,
+                uhf: uhf
+            };
+
+            try {
+                const res = await fetch('/api/schedule?password={{ password }}', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updatedData)
+                });
+
+                const result = await res.json();
+                alert(result.message || result.error);
+            } catch (err) {
+                alert("Error saving changes");
+            }
+        }
+
+        // Load data when page loads
+        loadSchedule();
     </script>
 </body>
 </html>
 """
 
+
+@app.route('/admin')
+def admin_page():
+    password = request.args.get('password')
+    if password != ADMIN_PASSWORD:
+        return "Unauthorized", 401
+
+    data = load_schedule()
+    return render_template_string(
+        ADMIN_HTML,
+        schedule_json=json.dumps(data, indent=2),
+        password=password
+    )
+
+# =====================
+# RUN
+# =====================
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(debug=True)
