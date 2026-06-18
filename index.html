@@ -217,91 +217,92 @@
         };
     }
 
-    function generateContent() {
-        const container = document.querySelector('.content');
-        container.innerHTML = '';
+   function generateContent() {
+    const container = document.querySelector('.content');
+    container.innerHTML = '';
 
-        // VHF channels
-        scheduleData.vhf.forEach((ch, i) => {
-            const div = document.createElement('div');
-            div.id = ch.id;
-            div.className = 'section vhf-section';
-            const channelNum = i + 2;
-            div.innerHTML = `<h2 class="channel-title">VHF ${channelNum} • ${ch.name}</h2><p>${ch.schedule}</p>`;
-            container.appendChild(div);
-        });
+    // Create channel screens
+    scheduleData.vhf.forEach((ch, i) => {
+        const div = document.createElement('div');
+        div.id = ch.id;
+        div.className = 'section vhf-section';
+        const channelNum = i + 2;
+        div.innerHTML = `<h2 class="channel-title">VHF ${channelNum} • ${ch.name}</h2><p>${ch.schedule}</p>`;
+        container.appendChild(div);
+    });
 
-        // UHF channels
-        scheduleData.uhf.forEach((ch, i) => {
-            const div = document.createElement('div');
-            div.id = ch.id;
-            div.className = 'section uhf-section';
-            const channelNum = i + 2;
-            div.innerHTML = `<h2 class="channel-title">UHF ${channelNum} • ${ch.name}</h2><p>${ch.schedule}</p>`;
-            container.appendChild(div);
-        });
+    scheduleData.uhf.forEach((ch, i) => {
+        const div = document.createElement('div');
+        div.id = ch.id;
+        div.className = 'section uhf-section';
+        const channelNum = i + 2;
+        div.innerHTML = `<h2 class="channel-title">UHF ${channelNum} • ${ch.name}</h2><p>${ch.schedule}</p>`;
+        container.appendChild(div);
+    });
 
-        // VHF Guide
-        const vGuide = document.createElement('div');
-        vGuide.id = 'vhfguide';
-        vGuide.className = 'section vhf-section';
-        let vhtml = `<h2 class="channel-title">VHF 0 • CHANNEL GUIDE</h2>`;
-        vhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
-        vhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;">MONDAY • JUNE 17, 2026</div>`;
-        vhtml += `<div class="guide-grid">`;
-        vhtml += `<div class="guide-entry guide-channel-num" onclick="showVHFGuide()">VHF 0</div>`;
-        vhtml += `<div class="guide-entry" onclick="showVHFGuide()">VHF GUIDE</div>`;
-        scheduleData.vhf.forEach((ch, i) => {
-            const channelNum = i + 2;
-            vhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToVHF(${i + 1})">VHF ${channelNum}</div>`;
-            vhtml += `<div class="guide-entry" onclick="jumpToVHF(${i +1})">${ch.name}</div>`;
-        });
-        vhtml += `</div></div>`;
-        vGuide.innerHTML = vhtml;
-        container.appendChild(vGuide);
+    // VHF Guide
+    const vGuide = document.createElement('div');
+    vGuide.id = 'vhfguide';
+    vGuide.className = 'section vhf-section';
+    let vhtml = `<h2 class="channel-title">VHF 0 • CHANNEL GUIDE</h2>`;
+    vhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
+    vhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;" id="vhf-guide-date"></div>`;
+    vhtml += `<div class="guide-grid">`;
+    vhtml += `<div class="guide-entry guide-channel-num" onclick="showVHFGuide()">VHF 0</div>`;
+    vhtml += `<div class="guide-entry" onclick="showVHFGuide()">VHF GUIDE</div>`;
+    scheduleData.vhf.forEach((ch, i) => {
+        const channelNum = i + 2;
+        vhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToVHF(${i + 1})">VHF ${channelNum}</div>`;
+        vhtml += `<div class="guide-entry" onclick="jumpToVHF(${i + 1})">${ch.name}</div>`;
+    });
+    vhtml += `</div></div>`;
+    vGuide.innerHTML = vhtml;
+    container.appendChild(vGuide);
 
-        // UHF Guide
-        const uGuide = document.createElement('div');
-        uGuide.id = 'uhfguide';
-        uGuide.className = 'section uhf-section';
-        let uhtml = `<h2 class="channel-title">UHF 0 • CHANNEL GUIDE</h2>`;
-        uhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
-        uhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;">MONDAY • JUNE 17, 2026</div>`;
-        uhtml += `<div class="guide-grid">`;
-        uhtml += `<div class="guide-entry guide-channel-num" onclick="showUHFGuide()">UHF 0</div>`;
-        uhtml += `<div class="guide-entry" onclick="showUHFGuide()">UHF GUIDE</div>`;
-        scheduleData.uhf.forEach((ch, i) => {
-            const channelNum = i + 2;
-            let displayName = ch.schedule;
-            uhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToUHF(${i + 1})">UHF ${channelNum}</div>`;
-            uhtml += `<div class="guide-entry" onclick="jumpToUHF(${i +1})">${displayName}</div>`;
-        });
-        uhtml += `</div></div>`;
-        uGuide.innerHTML = uhtml;
-        container.appendChild(uGuide);
-    }
+    // UHF Guide
+    const uGuide = document.createElement('div');
+    uGuide.id = 'uhfguide';
+    uGuide.className = 'section uhf-section';
+    let uhtml = `<h2 class="channel-title">UHF 0 • CHANNEL GUIDE</h2>`;
+    uhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
+    uhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;" id="uhf-guide-date"></div>`;
+    uhtml += `<div class="guide-grid">`;
+    uhtml += `<div class="guide-entry guide-channel-num" onclick="showUHFGuide()">UHF 0</div>`;
+    uhtml += `<div class="guide-entry" onclick="showUHFGuide()">UHF GUIDE</div>`;
+    scheduleData.uhf.forEach((ch, i) => {
+        const channelNum = i + 2;
+        let displayName = ch.schedule;
+        uhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToUHF(${i + 1})">UHF ${channelNum}</div>`;
+        uhtml += `<div class="guide-entry" onclick="jumpToUHF(${i + 1})">${displayName}</div>`;
+    });
+    uhtml += `</div></div>`;
+    uGuide.innerHTML = uhtml;
+    container.appendChild(uGuide);
 
-    function showVHFGuide() {
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.getElementById('vhfguide').classList.add('active');
-    }
+    // Set dynamic date/time on both guides
+    document.getElementById('vhf-guide-date').innerText = getCurrentDateTime();
+    document.getElementById('uhf-guide-date').innerText = getCurrentDateTime();
+}
 
-    function showUHFGuide() {
-        document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-        document.getElementById('uhfguide').classList.add('active');
-    }
+function showVHFGuide() {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('vhfguide').classList.add('active');
+}
 
-    function updateDisplay() {
+function showUHFGuide() {
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+    document.getElementById('uhfguide').classList.add('active');
+}
+
+function updateDisplay() {
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
     const st = document.getElementById('staticOverlay');
     const tx = document.getElementById('noSignalText');
 
     if (currentMode === 'vhf') {
         if (vhfIndex === 0) {
-            // Show VHF Guide
             document.getElementById('vhfguide').classList.add('active');
         } else {
-            // Show actual VHF channel
             const ch = scheduleData.vhf[vhfIndex - 1];
             if (ch && document.getElementById(ch.id)) {
                 document.getElementById(ch.id).classList.add('active');
@@ -311,10 +312,8 @@
         tx.style.display = 'none';
     } else {
         if (uhfIndex === 0) {
-            // Show UHF Guide
             document.getElementById('uhfguide').classList.add('active');
         } else {
-            // Show actual UHF channel
             const ch = scheduleData.uhf[uhfIndex - 1];
             if (ch && document.getElementById(ch.id)) {
                 document.getElementById(ch.id).classList.add('active');
@@ -325,19 +324,19 @@
     }
 }
 
-    function jumpToVHF(index) {
-        currentMode = 'vhf';
-        vhfIndex = index;
-        updateDisplay();
-    }
+function jumpToVHF(index) {
+    currentMode = 'vhf';
+    vhfIndex = index;
+    updateDisplay();
+}
 
-    function jumpToUHF(index) {
-        currentMode = 'uhf';
-        uhfIndex = index;
-        updateDisplay();
-    }
+function jumpToUHF(index) {
+    currentMode = 'uhf';
+    uhfIndex = index;
+    updateDisplay();
+}
 
-    function nextVHF() {
+function nextVHF() {
     if (lastMode !== 'vhf') {
         vhfIndex = 0;
     } else {
@@ -350,7 +349,7 @@
     updateDisplay();
 }
 
-    function nextUHF() {
+function nextUHF() {
     if (lastMode !== 'uhf') {
         uhfIndex = 0;
     } else {
@@ -363,12 +362,36 @@
     updateDisplay();
 }
 
-    function init() {
-        loadSchedule();
-        generateContent();
-        showVHFGuide();
-        lastMode = 'vhf';
-    }
+function init() {
+    loadSchedule();
+    generateContent();
+    showVHFGuide();
+    lastMode = 'vhf';
+}
+
+    function getCurrentDateTime() {
+    const now = new Date();
+    
+    const days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+    const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", 
+                    "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+
+    const dayName = days[now.getDay()];
+    const monthName = months[now.getMonth()];
+    const date = now.getDate();
+    const year = now.getFullYear();
+
+    let hours = now.getHours();
+    let minutes = now.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12;
+    hours = hours ? hours : 12; // the hour '0' should be '12'
+    minutes = minutes < 10 ? '0' + minutes : minutes;
+
+    return `${dayName} • ${monthName} ${date}, ${year} • ${hours}:${minutes} ${ampm}`;
+
+   
+}
 
     // =====================
     // 3. EVENT LISTENERS + INITIALIZATION
