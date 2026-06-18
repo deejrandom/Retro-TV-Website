@@ -240,24 +240,29 @@
             container.appendChild(vGuide);
 
             // UHF Guide
-            const uGuide = document.createElement('div');
-            uGuide.id = 'uhfguide';
-            uGuide.className = 'section uhf-section';
-            let uhtml = `<h2 class="channel-title">UHF 0 • PROGRAMMING GUIDE</h2>`;
-            uhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
-            uhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;">MONDAY • JUNE 17, 2026</div>`;
-            uhtml += `<div class="guide-grid">`;
-            uhtml += `<div class="guide-entry guide-channel-num" onclick="showUHFGuide()">UHF 0</div>`;
-            uhtml += `<div class="guide-entry" onclick="showUHFGuide()">UHF GUIDE</div>`;
-            scheduleData.uhf.forEach((ch, i) => {
-                const channelNum = i + 2;
-                let displayName = ch.schedule;
-                uhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToUHF(${i})">UHF ${channelNum}</div>`;
-                uhtml += `<div class="guide-entry" onclick="jumpToUHF(${i})">${displayName}</div>`;
-            });
-            uhtml += `</div></div>`;
-            uGuide.innerHTML = uhtml;
-            container.appendChild(uGuide);
+const uGuide = document.createElement('div');
+uGuide.id = 'uhfguide';
+uGuide.className = 'section uhf-section';
+let uhtml = `<h2 class="channel-title">UHF 0 • PROGRAMMING GUIDE</h2>`;
+uhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
+uhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;">MONDAY • JUNE 17, 2026</div>`;
+uhtml += `<div class="guide-grid">`;
+
+// Guide row
+uhtml += `<div class="guide-entry guide-channel-num" onclick="showUHFGuide()">UHF 0</div>`;
+uhtml += `<div class="guide-entry" onclick="showUHFGuide()">UHF GUIDE</div>`;
+
+// Channel rows
+scheduleData.uhf.forEach((ch, i) => {
+    const channelNum = i + 2;
+    let displayName = ch.schedule;
+    uhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToUHF(${i})">UHF ${channelNum}</div>`;
+    uhtml += `<div class="guide-entry" onclick="jumpToUHF(${i})">${displayName}</div>`;
+});
+
+uhtml += `</div></div>`;
+uGuide.innerHTML = uhtml;
+container.appendChild(uGuide);
         }
 
         function showVHFGuide() {
