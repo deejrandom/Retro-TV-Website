@@ -449,7 +449,7 @@
 
         async function loadSchedule() {
             try {
-                const res = await fetch('http://127.0.0.1:5000/api/schedule');
+                const res = await fetch('https://retro-tv-website.onrender.com/api/schedule');
                 scheduleData = await res.json();
             } catch (err) {
                 console.error("Failed to load schedule from backend.");
