@@ -294,12 +294,6 @@
             line-height: 1.3;
         }
 
-        .link-card-caption {
-            font-size: 11px;
-            color: #aaffaa;
-            line-height: 1.4;
-        }
-
         /* Gallery Groups */
         .gallery-groups-grid {
             display: grid;
@@ -642,12 +636,13 @@
                         Object.keys(groups).forEach(groupName => {
                             const groupImages = groups[groupName];
                             
-                            // Robust cover detection (supports both is_group_cover and is_cover)
+                            // Improved cover detection
                             let cover = groupImages.find(m => m.is_group_cover === true || m.is_cover === true) || groupImages[0];
 
                             gridHTML += `
                                 <div class="gallery-group-card" onclick='openLightbox(${JSON.stringify(groupImages)}, 0)'>
-                                    <img src="${cover.url}" alt="${groupName}">
+                                    <img src="${cover.url}" alt="${groupName}" 
+                                         onerror="this.style.display='none'; this.parentElement.innerHTML += '<div style=\'padding:20px; text-align:center; color:#ffcc00; font-size:12px;\'>Image not found</div>'">
                                     <div class="group-name">${groupName}</div>
                                 </div>
                             `;
@@ -656,7 +651,7 @@
                         gridHTML += `</div>`;
                         contentHTML = gridHTML;
                     } else {
-                        contentHTML = `<p style="color:#666;">No images in this gallery yet.</p>`;
+                        contentHTML = `<p style="color:#666; padding:10px;">No images in this gallery yet.</p>`;
                     }
                 } 
                 else {
