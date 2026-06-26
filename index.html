@@ -6,15 +6,15 @@
     <title>Warren C. Bennett's Retro Future</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-        
+       
         :root {
             --neon-pink: #ff00ff;
             --neon-blue: #00ffff;
             --neon-green: #39ff14;
         }
-        
+       
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+       
         body {
             background: linear-gradient(135deg, #0a0a1f 0%, #1a0033 100%);
             color: var(--neon-blue);
@@ -23,17 +23,18 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 15px;
+            padding: 8px 12px;
+            overflow: hidden;
         }
-        
+       
         .tv-frame {
             width: 100%;
-            max-width: 980px;
+            max-width: 1020px;
             aspect-ratio: 16 / 12.5;
             background: #1a1a1a;
             border: 32px solid #111;
             border-radius: 12px;
-            box-shadow: 0 0 80px var(--neon-pink), 
+            box-shadow: 0 0 80px var(--neon-pink),
                         0 0 140px var(--neon-blue),
                         inset 0 0 60px rgba(0,0,0,0.95);
             position: relative;
@@ -41,7 +42,7 @@
             padding: 22px;
             display: flex;
         }
-        
+       
         .screen {
             flex: 1;
             background: #000;
@@ -52,34 +53,20 @@
             box-shadow: inset 0 0 50px rgba(0,0,0,0.9);
             position: relative;
         }
-        
-        .screen::before {
-            content: '';
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: repeating-linear-gradient(
-                transparent 0px,
-                transparent 2px,
-                rgba(255,255,255,0.055) 2px,
-                rgba(255,255,255,0.055) 4px
-            );
-            pointer-events: none;
-            z-index: 5;
-            animation: scanline 4s linear infinite;
-        }
-        
-        .content { 
-            flex: 1; 
-            padding: 20px; 
-            overflow-y: auto; 
+       
+        .content {
+            flex: 1;
+            padding: 15px 20px 20px;
+            overflow-y: auto;
             position: relative;
             z-index: 6;
+            scrollbar-width: none;
         }
-        
+        .content::-webkit-scrollbar { display: none; }
+       
         .section { display: none; }
         .section.active { display: block; }
-        
+       
         .channel-title {
             font-size: 17px;
             color: var(--neon-green);
@@ -88,7 +75,7 @@
             border-bottom: 3px solid var(--neon-green);
             padding-bottom: 6px;
         }
-        
+       
         .right-panel {
             width: 70px;
             display: flex;
@@ -98,7 +85,7 @@
             margin-left: 20px;
             align-items: center;
         }
-        
+       
         .knob {
             width: 54px;
             height: 54px;
@@ -110,7 +97,7 @@
             cursor: pointer;
             transition: transform 0.1s ease;
         }
-        
+       
         .knob::after {
             content: '';
             position: absolute;
@@ -121,7 +108,7 @@
             background: #ffcc00;
             transform: translate(-50%, -50%) rotate(45deg);
         }
-        
+       
         .knob-label {
             text-align: center;
             font-size: 10px;
@@ -130,31 +117,276 @@
             text-shadow: 0 0 6px #ffcc00;
             font-weight: bold;
         }
-        
+
+        .guide-scroll-container {
+            height: 420px;
+            overflow: hidden;
+            position: relative;
+            border: 3px solid #334455;
+            background: #0a0a1f;
+        }
+
+        .guide-grids-wrapper {
+            will-change: transform;
+            transform: translateZ(0);
+            backface-visibility: hidden;
+        }
+
         .guide-grid {
             display: grid;
-            grid-template-columns: 80px 1fr;
+            grid-template-columns: 110px 1fr;
             gap: 6px 14px;
             font-size: 12px;
-            background: #0a0a1f;
             padding: 10px;
-            border: 2px solid #334455;
         }
-        
+       
         .guide-entry {
             cursor: pointer;
             padding: 6px 8px;
             transition: all 0.1s ease;
         }
-        
+       
         .guide-entry:hover {
             background: rgba(57, 255, 20, 0.15);
             color: var(--neon-green);
         }
+       
+        .guide-separator {
+            grid-column: 1 / -1;
+            height: 3px;
+            background: linear-gradient(to right, transparent, #39ff14, transparent);
+            margin: 12px 0 8px;
+            opacity: 0.7;
+        }
+
+        .text-block {
+            background-color: #0f0f1a;
+            border: 3px solid #556677;
+            padding: 16px;
+            margin: 15px 0;
+            line-height: 1.6;
+        }
         
-        .guide-channel-num {
+        .text-block strong { color: #ffcc00; }
+        .text-block em { color: #aaffff; }
+
+        .video-container {
+            position: relative;
+            width: 100%;
+            height: 560px;
+            max-height: 78vh;
+            overflow: hidden;
+            border: 3px solid #222;
+            margin-bottom: 10px;
+        }
+
+        .video-container iframe {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border: none;
+        }
+
+        .static {
+            position: absolute;
+            inset: 0;
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.12) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.12) 1px, transparent 1px);
+            background-size: 3px 3px;
+            animation: tv-static 0.08s infinite linear;
+            pointer-events: none;
+            z-index: 5;
+            display: none;
+            mix-blend-mode: screen;
+        }
+
+        @keyframes tv-static {
+            0% { background-position: 0 0; }
+            100% { background-position: 4px 4px; }
+        }
+
+        .no-signal-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #00ffff;
+            font-size: 18px;
+            text-align: center;
+            text-shadow: 
+                0 0 8px #00ffff,
+                0 0 16px #00ffff;
+            z-index: 6;
+            display: none;
+            pointer-events: none;
+            line-height: 1.5;
+            letter-spacing: 2px;
+        }
+
+        .screen.no-signal-active {
+            background: #0a0a0f;
+            box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.95);
+        }
+
+        .screen.no-signal-active .static {
+            background-image: 
+                linear-gradient(rgba(255,255,255,0.25) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.25) 1px, transparent 1px);
+            animation: tv-static 0.06s infinite linear;
+            opacity: 0.9;
+        }
+
+        .screen.no-signal-active .no-signal-text {
+            font-size: 20px;
+            color: #00ffff;
+            text-shadow: 
+                0 0 10px #00ffff,
+                0 0 20px #00ffff,
+                0 0 30px #00ffff;
+            animation: signal-flicker 1.5s infinite alternate ease-in-out;
+        }
+
+        @keyframes signal-flicker {
+            0% { opacity: 0.85; }
+            100% { opacity: 1; }
+        }
+
+        /* Link Cards */
+        .linkcards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 15px;
+        }
+
+        .link-card {
+            background: #111;
+            border: 3px solid #556677;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .link-card:hover {
+            border-color: #ffcc00;
+            transform: translateY(-3px);
+            box-shadow: 0 0 12px rgba(255, 204, 0, 0.3);
+        }
+
+        .link-card img {
+            width: 100%;
+            height: auto;
+            max-height: 160px;
+            object-fit: cover;
+            border: 2px solid #333;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .link-card-title {
             color: #ffcc00;
-            font-weight: bold;
+            font-size: 13px;
+            margin-bottom: 6px;
+            line-height: 1.3;
+        }
+
+        .link-card-caption {
+            font-size: 11px;
+            color: #aaffaa;
+            line-height: 1.4;
+        }
+
+        /* Gallery Groups */
+        .gallery-groups-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 15px;
+        }
+
+        .gallery-group-card {
+            background: #111;
+            border: 3px solid #556677;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .gallery-group-card:hover {
+            border-color: #ffcc00;
+            transform: translateY(-3px);
+        }
+
+        .gallery-group-card img {
+            width: 100%;
+            height: auto;
+            display: block;
+            image-rendering: pixelated;
+        }
+
+        .group-name {
+            background: #1a1a2e;
+            color: #ffcc00;
+            font-size: 13px;
+            padding: 8px;
+            text-align: center;
+            border-top: 2px solid #334455;
+        }
+
+        /* LIGHTBOX */
+        #lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        #lightbox.active {
+            display: flex;
+        }
+
+        #lightbox img {
+            max-width: 90vw;
+            max-height: 75vh;
+            border: 4px solid #556677;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+        }
+
+        .lightbox-controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .lightbox-btn {
+            background: #222;
+            color: #ffcc00;
+            border: 3px solid #556677;
+            padding: 10px 20px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .lightbox-btn:hover {
+            background: #ffcc00;
+            color: #000;
+        }
+
+        #lightbox-counter {
+            color: #aaffaa;
+            font-size: 14px;
+            min-width: 80px;
+            text-align: center;
         }
     </style>
 </head>
@@ -162,12 +394,10 @@
     <div class="tv-frame">
         <div class="screen">
             <div class="content"></div>
-            
             <div class="static" id="staticOverlay"></div>
-            <div class="no-signal-text" id="noSignalText">NO SIGNAL<br><span style="font-size:11px;">CHANNEL OFF AIR</span></div>
+            <div class="no-signal-text" id="noSignalText">NO SIGNAL<br><span style="font-size:12px;">CHANNEL OFF AIR</span></div>
         </div>
-        
-        <!-- Knobs on the RIGHT SIDE -->
+       
         <div class="right-panel">
             <div>
                 <div class="knob" id="vhfKnob"></div>
@@ -180,230 +410,363 @@
         </div>
     </div>
 
- <script>
-    // =====================
-    // 1. VARIABLES
-    // =====================
-    let currentMode = 'vhf';
-    let vhfIndex = 0;
-    let uhfIndex = 0;
-    let lastMode = 'vhf';
-    let scheduleData = { vhf: [], uhf: [] };
-    let vRot = 0;
-    let uRot = 0;
+    <!-- LIGHTBOX -->
+    <div id="lightbox">
+        <img id="lightbox-image" src="" alt="">
+        <div class="lightbox-controls">
+            <button class="lightbox-btn" onclick="prevLightboxImage()">◀ Prev</button>
+            <div id="lightbox-counter"></div>
+            <button class="lightbox-btn" onclick="nextLightboxImage()">Next ▶</button>
+            <button class="lightbox-btn" onclick="closeLightbox()" style="margin-left: 30px;">Close</button>
+        </div>
+    </div>
 
-    // =====================
-    // 2. FUNCTIONS
-    // =====================
-    function loadSchedule() {
-        scheduleData = {
-            vhf: [
-                { id: "home", name: "HOME", schedule: "Welcome message" },
-                { id: "writing", name: "WRITING", schedule: "Random Encounters" },
-                { id: "games", name: "GAMES", schedule: "Retro gaming hub" },
-                { id: "pixelart", name: "PIXEL ART", schedule: "Pixel Art Galleries" },
-                { id: "films", name: "FILMS", schedule: "Film related content" },
-                { id: "tv", name: "TV", schedule: "TV related content" },
-                { id: "where", name: "WHERE CAN YOU FIND ME?", schedule: "Social links" }
-            ],
-            uhf: [
-                { id: "uhf1", name: "CARTOONS", schedule: "Public Domain Cartoons" },
-                { id: "uhf2", name: "CARTOONS", schedule: "More Public Domain Cartoons" },
-                { id: "uhf3", name: "TV SHOWS", schedule: "Classic Public Domain TV" },
-                { id: "uhf4", name: "TV SHOWS", schedule: "More Classic TV" },
-                { id: "uhf5", name: "FILMS", schedule: "Double Indemnity - All day" },
-                { id: "uhf6", name: "FILMS", schedule: "More Public Domain Films" }
-            ]
-        };
-    }
+    <script>
+        let currentMode = 'vhf';
+        let vhfIndex = 0;
+        let uhfIndex = 0;
+        let lastMode = 'vhf';
+        let scheduleData = { vhf: [], uhf: [] };
+        let vRot = 0;
+        let uRot = 0;
+        let guideScrollRAF = null;
 
-   function generateContent() {
-    const container = document.querySelector('.content');
-    container.innerHTML = '';
+        let currentGalleryImages = [];
+        let currentLightboxIndex = 0;
 
-    // Create channel screens
-    scheduleData.vhf.forEach((ch, i) => {
-        const div = document.createElement('div');
-        div.id = ch.id;
-        div.className = 'section vhf-section';
-        const channelNum = i + 2;
-        div.innerHTML = `<h2 class="channel-title">VHF ${channelNum} • ${ch.name}</h2><p>${ch.schedule}</p>`;
-        container.appendChild(div);
-    });
+        function formatText(text) {
+            if (!text) return '';
+            let html = text
+                .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                .replace(/^## (.+)$/gm, '<h3 style="color:#ffcc00; margin:14px 0 6px; font-size:15px;">$1</h3>')
+                .replace(/^- (.+)$/gm, '<li style="margin-left:18px; margin-bottom:4px; list-style-type: disc;">$1</li>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/\n/g, '<br>');
+            html = html.replace(/(<li.*?<\/li>)+/g, match => '<ul style="margin:8px 0 12px; padding-left:6px;">' + match + '</ul>');
+            return html;
+        }
 
-    scheduleData.uhf.forEach((ch, i) => {
-        const div = document.createElement('div');
-        div.id = ch.id;
-        div.className = 'section uhf-section';
-        const channelNum = i + 2;
-        div.innerHTML = `<h2 class="channel-title">UHF ${channelNum} • ${ch.name}</h2><p>${ch.schedule}</p>`;
-        container.appendChild(div);
-    });
-
-    // VHF Guide
-    const vGuide = document.createElement('div');
-    vGuide.id = 'vhfguide';
-    vGuide.className = 'section vhf-section';
-    let vhtml = `<h2 class="channel-title">VHF 0 • CHANNEL GUIDE</h2>`;
-    vhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
-    vhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;" id="vhf-guide-date"></div>`;
-    vhtml += `<div class="guide-grid">`;
-    vhtml += `<div class="guide-entry guide-channel-num" onclick="showVHFGuide()">VHF 0</div>`;
-    vhtml += `<div class="guide-entry" onclick="showVHFGuide()">VHF GUIDE</div>`;
-    scheduleData.vhf.forEach((ch, i) => {
-        const channelNum = i + 2;
-        vhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToVHF(${i + 1})">VHF ${channelNum}</div>`;
-        vhtml += `<div class="guide-entry" onclick="jumpToVHF(${i + 1})">${ch.name}</div>`;
-    });
-    vhtml += `</div></div>`;
-    vGuide.innerHTML = vhtml;
-    container.appendChild(vGuide);
-
-    // UHF Guide
-    const uGuide = document.createElement('div');
-    uGuide.id = 'uhfguide';
-    uGuide.className = 'section uhf-section';
-    let uhtml = `<h2 class="channel-title">UHF 0 • CHANNEL GUIDE</h2>`;
-    uhtml += `<div style="background:#0a0a1f; padding:14px; border:3px solid #334455;">`;
-    uhtml += `<div style="color:#ffcc00; font-size:11px; margin-bottom:10px; text-align:center;" id="uhf-guide-date"></div>`;
-    uhtml += `<div class="guide-grid">`;
-    uhtml += `<div class="guide-entry guide-channel-num" onclick="showUHFGuide()">UHF 0</div>`;
-    uhtml += `<div class="guide-entry" onclick="showUHFGuide()">UHF GUIDE</div>`;
-    scheduleData.uhf.forEach((ch, i) => {
-        const channelNum = i + 2;
-        let displayName = ch.schedule;
-        uhtml += `<div class="guide-entry guide-channel-num" onclick="jumpToUHF(${i + 1})">UHF ${channelNum}</div>`;
-        uhtml += `<div class="guide-entry" onclick="jumpToUHF(${i + 1})">${displayName}</div>`;
-    });
-    uhtml += `</div></div>`;
-    uGuide.innerHTML = uhtml;
-    container.appendChild(uGuide);
-
-    // Set dynamic date/time on both guides
-    document.getElementById('vhf-guide-date').innerText = getCurrentDateTime();
-    document.getElementById('uhf-guide-date').innerText = getCurrentDateTime();
-}
-
-function showVHFGuide() {
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.getElementById('vhfguide').classList.add('active');
-}
-
-function showUHFGuide() {
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    document.getElementById('uhfguide').classList.add('active');
-}
-
-function updateDisplay() {
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-    const st = document.getElementById('staticOverlay');
-    const tx = document.getElementById('noSignalText');
-
-    if (currentMode === 'vhf') {
-        if (vhfIndex === 0) {
-            document.getElementById('vhfguide').classList.add('active');
-        } else {
-            const ch = scheduleData.vhf[vhfIndex - 1];
-            if (ch && document.getElementById(ch.id)) {
-                document.getElementById(ch.id).classList.add('active');
+        async function loadSchedule() {
+            try {
+                const res = await fetch('http://127.0.0.1:5000/api/schedule');
+                scheduleData = await res.json();
+            } catch (err) {
+                console.error("Failed to load schedule from backend.");
+                scheduleData = { vhf: [], uhf: [] };
             }
         }
-        st.style.display = 'none';
-        tx.style.display = 'none';
-    } else {
-        if (uhfIndex === 0) {
-            document.getElementById('uhfguide').classList.add('active');
-        } else {
-            const ch = scheduleData.uhf[uhfIndex - 1];
-            if (ch && document.getElementById(ch.id)) {
-                document.getElementById(ch.id).classList.add('active');
+
+        function openLightbox(images, startIndex = 0) {
+            currentGalleryImages = images;
+            currentLightboxIndex = startIndex;
+            const lightbox = document.getElementById('lightbox');
+            const img = document.getElementById('lightbox-image');
+            img.src = currentGalleryImages[currentLightboxIndex].url;
+            updateLightboxCounter();
+            lightbox.classList.add('active');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+        }
+
+        function updateLightboxCounter() {
+            const counter = document.getElementById('lightbox-counter');
+            counter.textContent = `${currentLightboxIndex + 1} / ${currentGalleryImages.length}`;
+        }
+
+        function nextLightboxImage() {
+            currentLightboxIndex = (currentLightboxIndex + 1) % currentGalleryImages.length;
+            document.getElementById('lightbox-image').src = currentGalleryImages[currentLightboxIndex].url;
+            updateLightboxCounter();
+        }
+
+        function prevLightboxImage() {
+            currentLightboxIndex = (currentLightboxIndex - 1 + currentGalleryImages.length) % currentGalleryImages.length;
+            document.getElementById('lightbox-image').src = currentGalleryImages[currentLightboxIndex].url;
+            updateLightboxCounter();
+        }
+
+        document.addEventListener('keydown', function(e) {
+            const lightbox = document.getElementById('lightbox');
+            if (!lightbox.classList.contains('active')) return;
+
+            if (e.key === 'ArrowRight') nextLightboxImage();
+            if (e.key === 'ArrowLeft') prevLightboxImage();
+            if (e.key === 'Escape') closeLightbox();
+        });
+
+        function generateContent() {
+            const container = document.querySelector('.content');
+            container.innerHTML = '';
+
+            function createChannelElement(ch, band, index) {
+                const div = document.createElement('div');
+                div.id = ch.id;
+                div.className = `section ${band}-section`;
+
+                const channelNumber = index + 2;
+                const channelHeader = `<h2 class="channel-title">${band.toUpperCase()} ${channelNumber} • ${ch.name}</h2>`;
+                const hasMedia = ch.media && ch.media.length > 0;
+
+                let contentHTML = '';
+
+                if (!hasMedia) {
+                    div.classList.add('empty-channel');
+                    contentHTML = `<p>${ch.schedule || ''}</p>`;
+                } 
+                else if (ch.presentation === 'linkcards') {
+                    contentHTML = `<div class="linkcards-grid">`;
+                    ch.media.forEach(m => {
+                        const link = m.link || '#';
+                        contentHTML += `
+                            <a href="${link}" target="_blank" class="link-card">
+                                ${m.url ? `<img src="${m.url}" alt="">` : ''}
+                                <div class="link-card-title">${m.title || ''}</div>
+                            </a>
+                        `;
+                    });
+                    contentHTML += `</div>`;
+                } 
+                else if (ch.presentation === 'gallery') {
+                    const images = ch.media.filter(m => m.type === 'image');
+
+                    if (images.length > 0) {
+                        const groups = {};
+                        images.forEach(img => {
+                            const groupName = img.gallery_group || 'Uncategorized';
+                            if (!groups[groupName]) groups[groupName] = [];
+                            groups[groupName].push(img);
+                        });
+
+                        let gridHTML = `<div class="gallery-groups-grid">`;
+
+                        Object.keys(groups).forEach(groupName => {
+                            const groupImages = groups[groupName];
+                            let cover = groupImages.find(m => m.is_group_cover === true) || groupImages[0];
+
+                            gridHTML += `
+                                <div class="gallery-group-card" onclick='openLightbox(${JSON.stringify(groupImages)}, 0)'>
+                                    <img src="${cover.url}" alt="${groupName}">
+                                    <div class="group-name">${groupName}</div>
+                                </div>
+                            `;
+                        });
+
+                        gridHTML += `</div>`;
+                        contentHTML = gridHTML;
+                    }
+                } 
+                else {
+                    ch.media.forEach(m => {
+                        if (m.type === 'youtube' || m.type === 'video') {
+                            let videoId = '';
+                            if (m.url.includes('youtube.com')) videoId = m.url.split('v=')[1]?.split('&')[0];
+                            else if (m.url.includes('youtu.be')) videoId = m.url.split('/').pop();
+
+                            if (videoId) {
+                                contentHTML += `<div class="video-container"><iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}" frameborder="0" allowfullscreen></iframe></div>`;
+                            }
+                        } else if (m.type === 'image') {
+                            contentHTML += `<div style="margin:15px 0;"><img src="${m.url}" style="max-width:100%; border:2px solid #333;"></div>`;
+                        } else if (m.type === 'text') {
+                            contentHTML += `<div class="text-block"><strong>${m.title || ''}</strong><br><br><div>${formatText(m.url)}</div></div>`;
+                        }
+                    });
+                }
+
+                div.innerHTML = channelHeader + contentHTML;
+                return div;
+            }
+
+            scheduleData.vhf.forEach((ch, i) => container.appendChild(createChannelElement(ch, 'vhf', i)));
+            scheduleData.uhf.forEach((ch, i) => container.appendChild(createChannelElement(ch, 'uhf', i)));
+
+            // VHF Guide
+            const vGuide = document.createElement('div');
+            vGuide.id = 'vhfguide';
+            vGuide.className = 'section vhf-section';
+            let vRows = `<div class="guide-entry guide-channel-num" onclick="showVHFGuide()">VHF 0</div>
+                         <div class="guide-entry" onclick="showVHFGuide()">VHF GUIDE</div>`;
+            scheduleData.vhf.forEach((ch, i) => {
+                vRows += `<div class="guide-entry guide-channel-num" onclick="jumpToVHF(${i+1})">VHF ${i+2}</div>
+                          <div class="guide-entry" onclick="jumpToVHF(${i+1})">${ch.name}</div>`;
+            });
+            vRows += `<div class="guide-separator"></div>`;
+            vGuide.innerHTML = `
+                <h2 class="channel-title">VHF 0 • CHANNEL GUIDE</h2>
+                <div class="guide-scroll-container">
+                    <div class="guide-grids-wrapper">
+                        <div class="guide-grid">${vRows}</div>
+                        <div class="guide-grid">${vRows}</div>
+                        <div class="guide-grid">${vRows}</div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(vGuide);
+
+            // UHF Guide
+            const uGuide = document.createElement('div');
+            uGuide.id = 'uhfguide';
+            uGuide.className = 'section uhf-section';
+            let uRows = `<div class="guide-entry guide-channel-num" onclick="showUHFGuide()">UHF 0</div>
+                         <div class="guide-entry" onclick="showUHFGuide()">UHF GUIDE</div>`;
+            scheduleData.uhf.forEach((ch, i) => {
+                uRows += `<div class="guide-entry guide-channel-num" onclick="jumpToUHF(${i+1})">UHF ${i+2}</div>
+                          <div class="guide-entry" onclick="jumpToUHF(${i+1})">${ch.schedule}</div>`;
+            });
+            uRows += `<div class="guide-separator"></div>`;
+            uGuide.innerHTML = `
+                <h2 class="channel-title">UHF 0 • CHANNEL GUIDE</h2>
+                <div class="guide-scroll-container">
+                    <div class="guide-grids-wrapper">
+                        <div class="guide-grid">${uRows}</div>
+                        <div class="guide-grid">${uRows}</div>
+                        <div class="guide-grid">${uRows}</div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(uGuide);
+        }
+
+        function showVHFGuide() {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            const guide = document.getElementById('vhfguide');
+            guide.classList.add('active');
+            startGuideScroll(guide);
+        }
+
+        function showUHFGuide() {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            const guide = document.getElementById('uhfguide');
+            guide.classList.add('active');
+            startGuideScroll(guide);
+        }
+
+        function updateDisplay() {
+            stopGuideScroll();
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+
+            const screen = document.querySelector('.screen');
+            const st = document.getElementById('staticOverlay');
+            const tx = document.getElementById('noSignalText');
+
+            if (currentMode === 'vhf') {
+                if (vhfIndex === 0) {
+                    const guide = document.getElementById('vhfguide');
+                    guide.classList.add('active');
+                    startGuideScroll(guide);
+                } else {
+                    const ch = scheduleData.vhf[vhfIndex - 1];
+                    if (ch && document.getElementById(ch.id)) {
+                        document.getElementById(ch.id).classList.add('active');
+                    }
+                }
+            } else {
+                if (uhfIndex === 0) {
+                    const guide = document.getElementById('uhfguide');
+                    guide.classList.add('active');
+                    startGuideScroll(guide);
+                } else {
+                    const ch = scheduleData.uhf[uhfIndex - 1];
+                    if (ch && document.getElementById(ch.id)) {
+                        document.getElementById(ch.id).classList.add('active');
+                    }
+                }
+            }
+
+            const activeSection = document.querySelector('.section.active');
+            if (activeSection && activeSection.classList.contains('empty-channel')) {
+                st.style.display = 'block';
+                tx.style.display = 'block';
+                screen.classList.add('no-signal-active');
+            } else {
+                st.style.display = 'none';
+                tx.style.display = 'none';
+                screen.classList.remove('no-signal-active');
             }
         }
-        st.style.display = 'block';
-        tx.style.display = 'block';
-    }
-}
 
-function jumpToVHF(index) {
-    currentMode = 'vhf';
-    vhfIndex = index;
-    updateDisplay();
-}
+        function jumpToVHF(index) {
+            stopGuideScroll();
+            currentMode = 'vhf';
+            vhfIndex = index;
+            updateDisplay();
+        }
 
-function jumpToUHF(index) {
-    currentMode = 'uhf';
-    uhfIndex = index;
-    updateDisplay();
-}
+        function jumpToUHF(index) {
+            stopGuideScroll();
+            currentMode = 'uhf';
+            uhfIndex = index;
+            updateDisplay();
+        }
 
-function nextVHF() {
-    if (lastMode !== 'vhf') {
-        vhfIndex = 0;
-    } else {
-        vhfIndex = (vhfIndex + 1) % (scheduleData.vhf.length + 1);
-    }
-    currentMode = 'vhf';
-    lastMode = 'vhf';
-    vRot = (vRot + 45) % 360;
-    vKnob.style.transform = `rotate(${vRot}deg)`;
-    updateDisplay();
-}
+        function nextVHF() {
+            stopGuideScroll();
+            if (lastMode !== 'vhf') vhfIndex = 0;
+            else vhfIndex = (vhfIndex + 1) % (scheduleData.vhf.length + 1);
+            currentMode = 'vhf';
+            lastMode = 'vhf';
+            vRot = (vRot + 45) % 360;
+            document.getElementById('vhfKnob').style.transform = `rotate(${vRot}deg)`;
+            updateDisplay();
+        }
 
-function nextUHF() {
-    if (lastMode !== 'uhf') {
-        uhfIndex = 0;
-    } else {
-        uhfIndex = (uhfIndex + 1) % (scheduleData.uhf.length + 1);
-    }
-    currentMode = 'uhf';
-    lastMode = 'uhf';
-    uRot = (uRot + 45) % 360;
-    uKnob.style.transform = `rotate(${uRot}deg)`;
-    updateDisplay();
-}
+        function nextUHF() {
+            stopGuideScroll();
+            if (lastMode !== 'uhf') uhfIndex = 0;
+            else uhfIndex = (uhfIndex + 1) % (scheduleData.uhf.length + 1);
+            currentMode = 'uhf';
+            lastMode = 'uhf';
+            uRot = (uRot + 45) % 360;
+            document.getElementById('uhfKnob').style.transform = `rotate(${uRot}deg)`;
+            updateDisplay();
+        }
 
-function init() {
-    loadSchedule();
-    generateContent();
-    showVHFGuide();
-    lastMode = 'vhf';
-}
+        function startGuideScroll(guideElement) {
+            stopGuideScroll();
+            const container = guideElement.querySelector('.guide-scroll-container');
+            const wrapper = guideElement.querySelector('.guide-grids-wrapper');
+            if (!container || !wrapper) return;
 
-    function getCurrentDateTime() {
-    const now = new Date();
-    
-    const days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
-    const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", 
-                    "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+            setTimeout(() => {
+                const firstGrid = wrapper.querySelector('.guide-grid');
+                if (!firstGrid) return;
+                const singleCopyHeight = firstGrid.offsetHeight;
+                if (singleCopyHeight < 30) return;
 
-    const dayName = days[now.getDay()];
-    const monthName = months[now.getMonth()];
-    const date = now.getDate();
-    const year = now.getFullYear();
+                let position = 0;
+                const scrollSpeed = scheduleData.guide_scroll_speed || 0.36;
 
-    let hours = now.getHours();
-    let minutes = now.getMinutes();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12;
-    hours = hours ? hours : 12; // the hour '0' should be '12'
-    minutes = minutes < 10 ? '0' + minutes : minutes;
+                function scroll() {
+                    position -= scrollSpeed;
+                    if (position <= -singleCopyHeight) position += singleCopyHeight;
+                    wrapper.style.transform = `translateY(${position}px)`;
+                    guideScrollRAF = requestAnimationFrame(scroll);
+                }
+                guideScrollRAF = requestAnimationFrame(scroll);
+            }, 100);
+        }
 
-    return `${dayName} • ${monthName} ${date}, ${year} • ${hours}:${minutes} ${ampm}`;
+        function stopGuideScroll() {
+            if (guideScrollRAF) {
+                cancelAnimationFrame(guideScrollRAF);
+                guideScrollRAF = null;
+            }
+        }
 
-   
-}
+        async function init() {
+            await loadSchedule();
+            generateContent();
+            showVHFGuide();
+            lastMode = 'vhf';
+        }
 
-    // =====================
-    // 3. EVENT LISTENERS + INITIALIZATION
-    // =====================
-    const vKnob = document.getElementById('vhfKnob');
-    const uKnob = document.getElementById('uhfKnob');
+        document.getElementById('vhfKnob').addEventListener('click', nextVHF);
+        document.getElementById('uhfKnob').addEventListener('click', nextUHF);
 
-    vKnob.addEventListener('click', nextVHF);
-    uKnob.addEventListener('click', nextUHF);
-
-    init();
-
-</script>
+        init();
+    </script>
 </body>
 </html>

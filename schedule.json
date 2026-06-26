@@ -1,76 +1,206 @@
 {
-  "guide_date": "TUESDAY • JUNE 17, 2026",
-  "vhf": [
-    {
-      "id": "home",
-      "name": "HOME",
-      "schedule": "Welcome message"
-    },
-    {
-      "id": "writing",
-      "name": "WRITING",
-      "schedule": "Random Encounters"
-    },
-    {
-      "id": "games",
-      "name": "GAMES",
-      "schedule": "Retro gaming hub"
-    },
-    {
-      "id": "pixelart",
-      "name": "PIXEL ART",
-      "schedule": "Pixel Art Galleries"
-    },
-    {
-      "id": "films",
-      "name": "FILMS",
-      "schedule": "Film related content"
-    },
-    {
-      "id": "tv",
-      "name": "TV",
-      "schedule": "TV related content"
-    },
-    {
-      "id": "where",
-      "name": "WHERE CAN YOU FIND ME?",
-      "schedule": "Social links"
-    }
-  ],
+  "guide_scroll_speed": 0.25,
   "uhf": [
     {
       "id": "uhf1",
+      "media": [],
       "name": "CARTOONS",
       "schedule": "Public Domain Cartoons"
     },
     {
       "id": "uhf2",
+      "media": [],
       "name": "CARTOONS",
       "schedule": "More Public Domain Cartoons"
     },
     {
       "id": "uhf3",
+      "media": [],
       "name": "TV SHOWS",
       "schedule": "Classic Public Domain TV"
     },
     {
       "id": "uhf4",
+      "media": [],
       "name": "TV SHOWS",
       "schedule": "More Classic TV"
     },
     {
       "id": "uhf5",
+      "media": [
+        {
+          "title": "Double Indemnity (1944)",
+          "type": "youtube",
+          "url": "https://www.youtube.com/watch?v=wI5xaum_HlA"
+        }
+      ],
       "name": "FILMS",
-      "schedule": "Double Indemnity - All day",
-      "content": {
-        "type": "embed",
-        "html": "<iframe src='https://archive.org/embed/double-indemnity-1944-restored-movie-720p-hd' width='100%' height='320' frameborder='0' allowfullscreen></iframe>"
-      }
+      "schedule": "Double Indemnity - All day"
     },
     {
       "id": "uhf6",
+      "media": [],
       "name": "FILMS",
       "schedule": "More Public Domain Films"
+    },
+    {
+      "id": "uhf-test",
+      "media": [],
+      "name": "UHF test",
+      "presentation": "linkcards",
+      "schedule": "UHF 9 pm"
+    },
+    {
+      "id": "ffdfadfadf",
+      "media": [
+        {
+          "link": "https://fastly.picsum.photos/id/977/300/200.jpg?hmac=Zm1anbQrQMm17sLeF0i2h8G3jHcAkhgerS0x987R9e4",
+          "title": "test",
+          "type": "image",
+          "url": "https://fastly.picsum.photos/id/977/300/200.jpg?hmac=Zm1anbQrQMm17sLeF0i2h8G3jHcAkhgerS0x987R9e4"
+        }
+      ],
+      "name": "ffdfadfadf",
+      "presentation": "linkcards",
+      "schedule": "fsfdsf"
+    },
+    {
+      "id": "nice",
+      "media": [],
+      "name": "nice",
+      "presentation": "gallery",
+      "schedule": "nice nice"
+    }
+  ],
+  "vhf": [
+    {
+      "id": "home",
+      "media": [
+        {
+          "caption": null,
+          "link": null,
+          "title": "Schedule",
+          "type": "text",
+          "url": "## Today's Schedule\n\n**Morning Shows**\n- Cartoons at 7am\n- News at 8am\n\n**Evening Shows**\n- Retro Movies at 8pm\n- *Late Night Special* at 11pm"
+        }
+      ],
+      "name": "HOME channel",
+      "presentation": "single",
+      "schedule": "Baseball? I dunno"
+    },
+    {
+      "id": "writing",
+      "media": [
+        {
+          "caption": null,
+          "link": null,
+          "title": "Welcome",
+          "type": "text",
+          "url": "sssss"
+        }
+      ],
+      "name": "WRITING Woods",
+      "schedule": "Random Encounters"
+    },
+    {
+      "id": "games",
+      "media": [],
+      "name": "GAMES",
+      "presentation": "gallery",
+      "schedule": "Retro gaming hub"
+    },
+    {
+      "id": "pixelart",
+      "media": [
+        {
+          "gallery_group": "Final Fantasy",
+          "title": "Black Mage",
+          "type": "image",
+          "url": "static/images/black-mage-nes.png"
+        },
+        {
+          "gallery_group": "Final Fantasy",
+          "title": "White Mage",
+          "type": "image",
+          "url": "static/images/white-mage-nes.png"
+        },
+        {
+          "gallery_group": "Final Fantasy",
+          "title": "Red Mage",
+          "type": "image",
+          "url": "static/images/redmage-nes.png"
+        },
+        {
+          "title": "Final Fantasy Logo",
+          "type": "image",
+          "url": "static/images/ff-Logo-NES.webp",
+          "gallery_group": "Final Fantasy ",
+          "is_group_cover": true
+        }
+      ],
+      "name": "PIXEL ART Bonanza",
+      "presentation": "gallery",
+      "schedule": "Bones and all"
+    },
+    {
+      "id": "films",
+      "media": [],
+      "name": "FILMS",
+      "schedule": "Film related content"
+    },
+    {
+      "id": "tv",
+      "media": [],
+      "name": "TV",
+      "schedule": "TV related content"
+    },
+    {
+      "id": "where",
+      "media": [],
+      "name": "WHERE CAN YOU FIND ME?",
+      "schedule": "Social links"
+    },
+    {
+      "id": "test-channel-",
+      "media": [
+        {
+          "link": "https://fastly.picsum.photos/id/977/300/200.jpg?hmac=Zm1anbQrQMm17sLeF0i2h8G3jHcAkhgerS0x987R9e4",
+          "title": "Test",
+          "type": "image",
+          "url": "https://fastly.picsum.photos/id/977/300/200.jpg?hmac=Zm1anbQrQMm17sLeF0i2h8G3jHcAkhgerS0x987R9e4"
+        },
+        {
+          "caption": "Killer cacti ",
+          "link": "https://images.squarespace-cdn.com/content/v1/5e9f634cf9f8c97306173ee3/3f2f178e-c509-4054-8256-431b2cd1d416/vibrant-sunset-skies-border2-IMG_79941abc-copy-2.jpg?format=2500w",
+          "title": "Az cacti",
+          "type": "image",
+          "url": "https://images.squarespace-cdn.com/content/v1/5e9f634cf9f8c97306173ee3/3f2f178e-c509-4054-8256-431b2cd1d416/vibrant-sunset-skies-border2-IMG_79941abc-copy-2.jpg?format=2500w"
+        },
+        {
+          "caption": "Golfing",
+          "link": "https://i.glimg.net/ui/images/stock-image_450x300.jpg?v=20240430063351",
+          "title": "Golf ball",
+          "type": "image",
+          "url": "https://i.glimg.net/ui/images/stock-image_450x300.jpg?v=20240430063351"
+        },
+        {
+          "caption": "Letchworth Falls",
+          "link": "https://thumbs.dreamstime.com/b/middle-falls-inspiration-point-letchworth-state-park-new-york-middle-falls-inspiration-point-letchworth-state-434450716.jpg?w=992",
+          "title": "Letchworth",
+          "type": "image",
+          "url": "https://thumbs.dreamstime.com/b/middle-falls-inspiration-point-letchworth-state-park-new-york-middle-falls-inspiration-point-letchworth-state-434450716.jpg?w=992"
+        }
+      ],
+      "name": "Test channel ",
+      "presentation": "linkcards",
+      "schedule": "a channel for test "
+    },
+    {
+      "id": "my-test-channel",
+      "media": [],
+      "name": "My test channel",
+      "presentation": "linkcards",
+      "schedule": "test"
     }
   ]
 }
