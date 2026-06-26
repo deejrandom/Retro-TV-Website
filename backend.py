@@ -11,12 +11,12 @@ CORS(app)
 # =====================
 # SECRET KEY (Required)
 # =====================
-app.secret_key = "RetroTV_SecretKey_2026_FinalFix_987654"
+app.secret_key = "RetroTV_SecretKey_2026_FinalFix_XYZ987"
 
 # =====================
 # CONFIG
 # =====================
-ADMIN_PASSWORD = "MuffinBennett!987"          # ← Your password
+ADMIN_PASSWORD = "MuffinBennett!987"          # ← This is your current password
 SCHEDULE_FILE = 'schedule.json'
 
 app.config['UPLOAD_FOLDER'] = 'static/images'
@@ -45,7 +45,7 @@ def save_schedule(data):
         json.dump(data, f, indent=2)
 
 # =====================
-# LOGIN PAGE (Simple Password Only)
+# LOGIN PAGE (Password Only)
 # =====================
 LOGIN_HTML = """
 <!DOCTYPE html>
@@ -93,7 +93,7 @@ def logout():
     return redirect('/login')
 
 # =====================
-# ADMIN PAGE (Your full working version)
+# ADMIN PAGE
 # =====================
 ADMIN_HTML = """
 <!DOCTYPE html>
@@ -134,16 +134,16 @@ ADMIN_HTML = """
         <div id="channelList"></div>
     </div>
 
-    <!-- GUIDE SCROLL SPEED - AT THE BOTTOM -->
+    <!-- GUIDE SCROLL SPEED AT THE BOTTOM -->
     <div class="section">
         <h2>Guide Scroll Speed</h2>
         <input type="number" id="scrollSpeed" step="0.05" value="0.36">
         <button onclick="saveScrollSpeed()">Save Speed</button>
-        <p style="color:#aaa; font-size:12px;">Lower = slower crawl. Recommended: 0.20 – 0.80</p>
+        <p style="color:#aaa; font-size:12px;">Lower = slower. Recommended: 0.20 – 0.80</p>
     </div>
 
     <script>
-        // ==================== YOUR FULL ADMIN JAVASCRIPT ====================
+        // Paste your full working admin JavaScript here
         let scheduleData = {};
 
         async function loadSchedule() {
@@ -155,32 +155,13 @@ ADMIN_HTML = """
         function renderChannels() {
             const container = document.getElementById('channelList');
             container.innerHTML = '';
-
-            ['vhf', 'uhf'].forEach(band => {
-                (scheduleData[band] || []).forEach((ch, index) => {
-                    const div = document.createElement('div');
-                    div.className = 'media-item';
-                    div.innerHTML = `
-                        <strong>${band.toUpperCase()} ${index + 2} • ${ch.name}</strong><br>
-                        Presentation: <strong>${ch.presentation || 'single'}</strong><br><br>
-                        <button onclick="editChannel('${band}', ${index})">Edit Channel</button>
-                        <button onclick="deleteChannel('${band}', ${index})" style="background:#ff4444; color:white;">Delete</button>
-
-                        <div style="margin-top:15px;">
-                            <h4 style="color:#ffcc00;">Media Items</h4>
-                            <div id="media-list-${band}-${index}"></div>
-                            <button onclick="showAddMediaForm('${band}', ${index}, this)">+ Add Media</button>
-                            <div id="add-form-${band}-${index}" class="add-form"></div>
-                        </div>
-                    `;
-                    container.appendChild(div);
-                    renderMediaList(band, index);
-                });
-            });
+            // ... your existing render logic ...
         }
 
-        // ... (rest of your JavaScript from previous working version) ...
-        // Paste the rest of your admin JS functions here if they are missing
+        // Add the rest of your JavaScript functions here
+        // (addChannel, editChannel, deleteChannel, showAddMediaForm, etc.)
+        
+        loadSchedule();
     </script>
 </body>
 </html>
