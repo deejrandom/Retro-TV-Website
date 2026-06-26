@@ -390,10 +390,9 @@
         }
 
         /* ============================================ */
-        /* MOBILE PORTABLE TV STYLES (CLEAN VERSION)    */
+        /* MOBILE PORTABLE TV STYLES                    */
         /* ============================================ */
 
-        /* Portrait mode (vertical phone) */
         @media (max-width: 768px) {
             body {
                 padding: 8px;
@@ -426,7 +425,6 @@
                 font-size: 13px !important;
             }
             
-            /* Bigger touch-friendly knobs */
             #vhfKnob, #uhfKnob {
                 width: 72px !important;
                 height: 72px !important;
@@ -441,7 +439,6 @@
                 font-size: 11px !important;
             }
 
-            /* Linkcards & Gallery fix for mobile */
             .linkcards-grid {
                 grid-template-columns: 1fr !important;
                 gap: 12px !important;
@@ -461,7 +458,6 @@
             }
         }
 
-        /* Landscape mode on phones */
         @media (max-width: 768px) and (orientation: landscape) {
             .tv-frame {
                 flex-direction: row;
@@ -636,7 +632,7 @@
                     if (images.length > 0) {
                         const groups = {};
                         images.forEach(img => {
-                            const groupName = img.gallery_group || 'Uncategorized';
+                            const groupName = img.gallery_group || img.group || 'Uncategorized';
                             if (!groups[groupName]) groups[groupName] = [];
                             groups[groupName].push(img);
                         });
@@ -645,7 +641,9 @@
 
                         Object.keys(groups).forEach(groupName => {
                             const groupImages = groups[groupName];
-                            let cover = groupImages.find(m => m.is_group_cover === true) || groupImages[0];
+                            
+                            // Robust cover detection (supports both is_group_cover and is_cover)
+                            let cover = groupImages.find(m => m.is_group_cover === true || m.is_cover === true) || groupImages[0];
 
                             gridHTML += `
                                 <div class="gallery-group-card" onclick='openLightbox(${JSON.stringify(groupImages)}, 0)'>
@@ -657,6 +655,8 @@
 
                         gridHTML += `</div>`;
                         contentHTML = gridHTML;
+                    } else {
+                        contentHTML = `<p style="color:#666;">No images in this gallery yet.</p>`;
                     }
                 } 
                 else {
