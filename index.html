@@ -215,6 +215,22 @@
     opacity: 0.9;
 }
 
+#staticCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    pointer-events: none;
+    display: none; /* Hidden by default */
+    mix-blend-mode: screen;
+    opacity: 0.85;
+}
+
+.screen.no-signal-active #staticCanvas {
+    display: block;
+}
+
 @keyframes tv-static {
     0% { 
         background-position: 0 0, 0 0, 0 0, 0 0; 
@@ -512,11 +528,14 @@
 </head>
 <body>
     <div class="tv-frame">
-        <div class="screen">
-            <div class="content"></div>
-            <div class="static" id="staticOverlay"></div>
-            <div class="no-signal-text" id="noSignalText">NO SIGNAL<br><span style="font-size:12px;">CHANNEL OFF AIR</span></div>
-        </div>
+        <div class="screen" id="screen">
+    <div class="content"></div>
+
+    <!-- NEW REALISTIC STATIC CANVAS -->
+    <canvas id="staticCanvas"></canvas>
+
+    <div class="no-signal-text" id="noSignalText">NO SIGNAL<br><span style="font-size:12px;">CHANNEL OFF AIR</span></div>
+</div>
        
         <div class="right-panel">
             <div>
@@ -892,6 +911,95 @@
         document.getElementById('uhfKnob').addEventListener('click', nextUHF);
 
         init();
+
+        // ============================================
+// REALISTIC CANVAS TV STATIC (Medium + Color)
+// ============================================
+let staticCanvas = null;
+let staticCtx = null;
+let staticAnimation = null;
+
+function initStaticCanvas() {
+    staticCanvas = document.getElementById('staticCanvas');
+    if (!staticCanvas) return;
+
+    staticCtx = staticCanvas.getContext('2d', { alpha: true });
+
+    // Make canvas match screen size
+    function resizeCanvas() {
+        const screen = document.querySelector('.screen');
+        if (screen && staticCanvas) {
+            staticCanvas.width = screen.offsetWidth;
+            staticCanvas.height = screen.offsetHeight;
+        }
+    }
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+}
+
+function drawStatic() {
+    if (!staticCtx || !staticCanvas) return;
+
+    const w = staticCanvas.width;
+    const h = staticCanvas.height;
+
+    const imageData = staticCtx.createImageData(w, h);
+    const data = imageData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+        // Medium intensity noise
+        const noise = Math.random() * 255;
+
+        // Slight cyan/blue color tint
+        data[i]     = noise * 0.6;     // Red (lower)
+        data[i + 1] = noise * 0.85;    // Green
+        data[i + 2] = noise;           // Blue (higher for cyan tint)
+        data[i + 3] = 180 + Math.random() * 75; // Opacity variation
+    }
+
+    staticCtx.putImageData(imageData, 0, 0);
+}
+
+function startStaticAnimation() {
+    if (staticAnimation) cancelAnimationFrame(staticAnimation);
+
+    function animate() {
+        drawStatic();
+        staticAnimation = requestAnimationFrame(animate);
+    }
+    animate();
+}
+
+function stopStaticAnimation() {
+    if (staticAnimation) {
+        cancelAnimationFrame(staticAnimation);
+        staticAnimation = null;
+    }
+}
+
+// Hook into your existing no-signal logic
+const originalUpdateDisplay = updateDisplay;
+updateDisplay = function() {
+    originalUpdateDisplay();
+
+    const screen = document.querySelector('.screen');
+    const canvas = document.getElementById('staticCanvas');
+
+    if (screen && screen.classList.contains('no-signal-active')) {
+        if (canvas) canvas.style.display = 'block';
+        startStaticAnimation();
+    } else {
+        if (canvas) canvas.style.display = 'none';
+        stopStaticAnimation();
+    }
+};
+
+// Initialize canvas when page loads
+window.addEventListener('load', () => {
+    initStaticCanvas();
+});
+
     </script>
 </body>
 </html>
