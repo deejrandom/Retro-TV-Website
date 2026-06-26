@@ -825,22 +825,107 @@
 
         init();
 
-        
-// ============================================
-// MOBILE TAP FEEDBACK (Portable TV feel)
-// ============================================
-function addMobileKnobFeedback() {
-    const knobs = document.querySelectorAll('#vhfKnob, #uhfKnob');
-    knobs.forEach(knob => {
-        knob.addEventListener('touchstart', () => {
-            knob.style.transition = 'transform 0.08s ease, filter 0.08s ease';
-        });
-    });
+  /* ============================================ */
+/* MOBILE PORTABLE TV - FIXED CARD LAYOUTS      */
+/* ============================================ */
+
+/* Portrait mode (vertical phone) */
+@media (max-width: 768px) {
+    body {
+        padding: 8px;
+        align-items: flex-start;
+        padding-top: 20px;
+    }
+    
+    .tv-frame {
+        max-width: 100%;
+        aspect-ratio: 9 / 14;
+        border-width: 18px;
+        padding: 12px;
+        border-radius: 8px;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 95vh;
+    }
+    
+    .screen {
+        flex: 1;
+        border-width: 8px;
+        min-height: 260px;
+    }
+    
+    .content {
+        padding: 8px !important;
+    }
+    
+    .channel-title {
+        font-size: 13px !important;
+    }
+    
+    /* Bigger touch-friendly knobs */
+    #vhfKnob, #uhfKnob {
+        width: 72px !important;
+        height: 72px !important;
+    }
+    
+    #vhfKnob:active, #uhfKnob:active {
+        transform: scale(0.92) rotate(12deg) !important;
+        filter: brightness(1.4);
+    }
+    
+    .knob-label {
+        font-size: 11px !important;
+    }
+
+    /* === FIX: Linkcards & Image Cards on Mobile === */
+    .linkcards-grid {
+        grid-template-columns: 1fr !important;   /* Stack nicely on small screens */
+        gap: 12px !important;
+    }
+    
+    .link-card {
+        padding: 10px !important;
+    }
+    
+    .link-card img {
+        max-height: 140px !important;
+    }
+
+    /* Gallery groups also stack better */
+    .gallery-groups-grid {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)) !important;
+        gap: 12px !important;
+    }
 }
 
-// Only activate on touch devices
-if ('ontouchstart' in window) {
-    addMobileKnobFeedback();
+/* Landscape mode on phones */
+@media (max-width: 768px) and (orientation: landscape) {
+    .tv-frame {
+        flex-direction: row;
+        aspect-ratio: 16 / 10;
+        max-height: 92vh;
+        gap: 14px;
+    }
+    
+    .screen {
+        flex: 2.4;
+        min-height: auto;
+    }
+    
+    #vhfKnob, #uhfKnob {
+        width: 58px !important;
+        height: 58px !important;
+    }
+
+    /* Linkcards look better in landscape */
+    .linkcards-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+    }
+    
+    .gallery-groups-grid {
+        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)) !important;
+    }
 }
     </script>
 </body>
