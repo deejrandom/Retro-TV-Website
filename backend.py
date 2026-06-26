@@ -8,14 +8,14 @@ app = Flask(__name__)
 CORS(app)
 
 # =====================
-# SECRET KEY (This fixes the error)
+# SECRET KEY (Required)
 # =====================
-app.secret_key = "RetroTV_SuperSecretKey_2026_XYZ123"   # ← Must be here
+app.secret_key = "RetroTV_SecretKey_2026_FinalFix_XYZ789"
 
 # =====================
 # CONFIG
 # =====================
-ADMIN_PASSWORD = "MuffinBennett!987"
+ADMIN_PASSWORD = "MuffinBennett!987"   # ← Your password
 SCHEDULE_FILE = "schedule.json"
 
 login_manager = LoginManager()
@@ -57,7 +57,7 @@ LOGIN_HTML = """
 <body>
     <h1>Retro TV Admin</h1>
     <form method="POST">
-        <input type="password" name="password" placeholder="Enter Password" required><br>
+        <input type="password" name="password" placeholder="Enter Admin Password" required><br>
         <button type="submit">Login</button>
     </form>
 </body>
@@ -65,7 +65,7 @@ LOGIN_HTML = """
 """
 
 # =====================
-# ADMIN PAGE (Simplified for now)
+# ADMIN PAGE (Basic but working)
 # =====================
 ADMIN_HTML = """
 <!DOCTYPE html>
@@ -75,12 +75,15 @@ ADMIN_HTML = """
     <style>
         body { background: #0a0a1f; color: #39ff14; font-family: 'Press Start 2P', system-ui; padding: 30px; }
         h1 { color: #ffcc00; }
+        a { color: #ffcc00; }
     </style>
 </head>
 <body>
     <h1>Retro TV Admin</h1>
-    <p>Admin page is working!</p>
-    <p>You are logged in.</p>
+    <p style="color:#ffcc00;">✅ Login successful!</p>
+    <p>You can now access the admin functions.</p>
+    <p><a href="/api/schedule" target="_blank">View Current Schedule Data</a></p>
+    <br>
     <a href="/logout">Logout</a>
 </body>
 </html>
