@@ -876,7 +876,7 @@ function updateDisplay() {
             updateDisplay();
         }
 
-ffunction nextVHF() {
+function nextVHF() {
     stopGuideScroll();
 
     if (lastMode !== 'vhf') {
@@ -888,8 +888,8 @@ ffunction nextVHF() {
     currentMode = 'vhf';
     lastMode = 'vhf';
 
-    // Just keep adding rotation instead of resetting it
-    vRot += 45;
+    // Calculate rotation based on channel index (much more natural)
+    vRot = vhfIndex * 45;
     document.getElementById('vhfKnob').style.transform = `rotate(${vRot}deg)`;
 
     updateDisplay();
@@ -907,12 +907,13 @@ function nextUHF() {
     currentMode = 'uhf';
     lastMode = 'uhf';
 
-    // Just keep adding rotation instead of resetting it
-    uRot += 45;
+    // Calculate rotation based on channel index
+    uRot = uhfIndex * 45;
     document.getElementById('uhfKnob').style.transform = `rotate(${uRot}deg)`;
 
     updateDisplay();
 }
+
         function startGuideScroll(guideElement) {
             stopGuideScroll();
             const container = guideElement.querySelector('.guide-scroll-container');
