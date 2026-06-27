@@ -115,15 +115,15 @@
             font-weight: bold;
         }
 
-        /* Link Cards */
-        .linkcards-grid {
+        /* Link Cards & Gallery */
+        .linkcards-grid, .gallery-groups-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 16px;
             margin-top: 15px;
         }
 
-        .link-card {
+        .link-card, .gallery-group-card {
             background: #111;
             border: 3px solid #556677;
             padding: 12px;
@@ -131,48 +131,20 @@
             transition: all 0.2s ease;
             text-decoration: none;
             color: inherit;
-            display: block;
         }
 
-        .link-card:hover {
+        .link-card:hover, .gallery-group-card:hover {
             border-color: #ffcc00;
             transform: translateY(-3px);
         }
 
-        .link-card img {
+        .link-card img, .gallery-group-card img {
             width: 100%;
             height: auto;
             max-height: 160px;
             object-fit: cover;
             border: 2px solid #333;
             margin-bottom: 10px;
-        }
-
-        /* Gallery Groups */
-        .gallery-groups-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-top: 15px;
-        }
-
-        .gallery-group-card {
-            background: #111;
-            border: 3px solid #556677;
-            overflow: hidden;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .gallery-group-card:hover {
-            border-color: #ffcc00;
-            transform: translateY(-3px);
-        }
-
-        .gallery-group-card img {
-            width: 100%;
-            height: auto;
-            display: block;
         }
 
         .group-name {
@@ -210,7 +182,6 @@
             margin-top: 20px;
             display: flex;
             gap: 20px;
-            align-items: center;
         }
 
         .lightbox-btn {
@@ -228,24 +199,15 @@
             color: #000;
         }
 
-        /* Mobile Responsive */
+        /* Mobile */
         @media (max-width: 768px) {
             .tv-frame {
                 flex-direction: column;
-                max-width: 100%;
             }
-            
             .right-panel {
                 flex-direction: row;
-                justify-content: center;
                 margin-left: 0;
                 margin-top: 15px;
-                width: 100%;
-            }
-            
-            .knob {
-                width: 48px;
-                height: 48px;
             }
         }
     </style>
@@ -254,7 +216,7 @@
     <div class="tv-frame">
         <div class="screen">
             <div class="content"></div>
-            <div class="no-signal-text" id="noSignalText">NO SIGNAL<br><span style="font-size:12px;">CHANNEL OFF AIR</span></div>
+            <div class="no-signal-text" id="noSignalText" style="display:none;">NO SIGNAL<br><span style="font-size:12px;">CHANNEL OFF AIR</span></div>
         </div>
        
         <div class="right-panel">
@@ -281,7 +243,6 @@
     </div>
 
     <script>
-        // ==================== CORE JAVASCRIPT ====================
         let currentMode = 'vhf';
         let vhfIndex = 0;
         let uhfIndex = 0;
@@ -296,10 +257,30 @@
         async function loadSchedule() {
             try {
                 const res = await fetch('https://retro-tv-website.onrender.com/api/schedule');
+                if (!res.ok) throw new Error('Backend error');
                 scheduleData = await res.json();
             } catch (err) {
-                console.error("Failed to load schedule");
-                scheduleData = { vhf: [], uhf: [] };
+                console.error("Failed to load schedule from backend. Using fallback.");
+                // Fallback data so the site doesn't break completely
+                scheduleData = {
+                    vhf: [
+                        { id: "home", name: "HOME", schedule: "Welcome message" },
+                        { id: "writing", name: "WRITING", schedule: "Random Encounters" },
+                        { id: "games", name: "GAMES", schedule: "Retro gaming hub" },
+                        { id: "pixelart", name: "PIXEL ART", schedule: "Pixel Art Galleries", presentation: "gallery", media: [] },
+                        { id: "films", name: "FILMS", schedule: "Film related content" },
+                        { id: "tv", name: "TV", schedule: "TV related content" },
+                        { id: "where", name: "WHERE CAN YOU FIND ME?", schedule: "Social links" }
+                    ],
+                    uhf: [
+                        { id: "uhf1", name: "CARTOONS", schedule: "Public Domain Cartoons" },
+                        { id: "uhf2", name: "CARTOONS", schedule: "More Public Domain Cartoons" },
+                        { id: "uhf3", name: "TV SHOWS", schedule: "Classic Public Domain TV" },
+                        { id: "uhf4", name: "TV SHOWS", schedule: "More Classic TV" },
+                        { id: "uhf5", name: "FILMS", schedule: "Double Indemnity - All day" },
+                        { id: "uhf6", name: "FILMS", schedule: "More Public Domain Films" }
+                    ]
+                };
             }
         }
 
@@ -307,26 +288,75 @@
             const container = document.querySelector('.content');
             container.innerHTML = '';
 
-            // Add your channel rendering logic here
-            // (This is the same logic you had working before)
+            // Basic channel rendering (you can expand this with your full logic)
+            scheduleData.vhf.forEach((ch, i) => {
+                const div = document.createElement('div');
+                div.id = ch.id;
+                div.className = 'section vhf-section';
+                div.innerHTML = `<h2 class="channel-title">VHF ${i + 2} • ${ch.name}</h2><p>${ch.schedule}</p>`;
+                container.appendChild(div);
+            });
+
+            scheduleData.uhf.forEach((ch, i) => {
+                const div = document.createElement('div');
+                div.id = ch.id;
+                div.className = 'section uhf-section';
+                div.innerHTML = `<h2 class="channel-title">UHF ${i + 2} • ${ch.name}</h2><p>${ch.schedule}</p>`;
+                container.appendChild(div);
+            });
         }
 
         function updateDisplay() {
-            // Your existing updateDisplay logic
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+
+            const noSignal = document.getElementById('noSignalText');
+            if (!noSignal) return; // Safety check
+
+            if (currentMode === 'vhf') {
+                if (vhfIndex === 0) {
+                    // Show guide
+                } else {
+                    const ch = scheduleData.vhf[vhfIndex - 1];
+                    if (ch && document.getElementById(ch.id)) {
+                        document.getElementById(ch.id).classList.add('active');
+                    }
+                }
+            } else {
+                if (uhfIndex === 0) {
+                    // Show guide
+                } else {
+                    const ch = scheduleData.uhf[uhfIndex - 1];
+                    if (ch && document.getElementById(ch.id)) {
+                        document.getElementById(ch.id).classList.add('active');
+                    }
+                }
+            }
         }
 
         function nextVHF() {
-            // Your existing nextVHF logic
+            if (lastMode !== 'vhf') vhfIndex = 0;
+            else vhfIndex = (vhfIndex + 1) % (scheduleData.vhf.length + 1);
+            currentMode = 'vhf';
+            lastMode = 'vhf';
+            vRot = (vRot + 45) % 360;
+            document.getElementById('vhfKnob').style.transform = `rotate(${vRot}deg)`;
+            updateDisplay();
         }
 
         function nextUHF() {
-            // Your existing nextUHF logic
+            if (lastMode !== 'uhf') uhfIndex = 0;
+            else uhfIndex = (uhfIndex + 1) % (scheduleData.uhf.length + 1);
+            currentMode = 'uhf';
+            lastMode = 'uhf';
+            uRot = (uRot + 45) % 360;
+            document.getElementById('uhfKnob').style.transform = `rotate(${uRot}deg)`;
+            updateDisplay();
         }
 
         async function init() {
             await loadSchedule();
             generateContent();
-            // Show guide by default
+            updateDisplay();
         }
 
         document.getElementById('vhfKnob').addEventListener('click', nextVHF);
