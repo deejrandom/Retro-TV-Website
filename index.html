@@ -6,15 +6,15 @@
     <title>Warren C. Bennett's Retro Future</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-       
+        
         :root {
             --neon-pink: #ff00ff;
             --neon-blue: #00ffff;
             --neon-green: #39ff14;
         }
-       
+        
         * { margin: 0; padding: 0; box-sizing: border-box; }
-       
+        
         body {
             background: linear-gradient(135deg, #0a0a1f 0%, #1a0033 100%);
             color: var(--neon-blue);
@@ -23,232 +23,88 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 15px;
+            padding: 20px;
         }
-       
+        
         .tv-frame {
             width: 100%;
-            max-width: 1020px;
+            max-width: 1000px;
             aspect-ratio: 16 / 12.5;
             background: #1a1a1a;
-            border: 32px solid #111;
-            border-radius: 12px;
-            box-shadow: 0 0 80px var(--neon-pink),
-                        0 0 140px var(--neon-blue),
-                        inset 0 0 60px rgba(0,0,0,0.95);
-            position: relative;
-            z-index: 2;
-            padding: 22px;
+            border: 30px solid #111;
+            border-radius: 10px;
+            box-shadow: 0 0 80px var(--neon-pink), 0 0 140px var(--neon-blue);
+            padding: 20px;
             display: flex;
         }
-       
+        
         .screen {
             flex: 1;
             background: #000;
-            border: 12px solid #222;
-            display: flex;
-            flex-direction: column;
+            border: 10px solid #222;
             overflow: hidden;
-            box-shadow: inset 0 0 50px rgba(0,0,0,0.9);
             position: relative;
         }
-       
+        
         .content {
-            flex: 1;
-            padding: 15px 20px 20px;
+            padding: 20px;
+            height: 100%;
             overflow-y: auto;
-            position: relative;
-            z-index: 6;
         }
-       
+        
         .section { display: none; }
         .section.active { display: block; }
-       
+        
         .channel-title {
-            font-size: 17px;
+            font-size: 18px;
             color: var(--neon-green);
-            margin-bottom: 12px;
+            margin-bottom: 15px;
             text-shadow: 0 0 10px var(--neon-green);
             border-bottom: 3px solid var(--neon-green);
-            padding-bottom: 6px;
+            padding-bottom: 8px;
         }
-       
+        
         .right-panel {
-            width: 70px;
+            width: 80px;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            gap: 30px;
+            gap: 35px;
             margin-left: 20px;
             align-items: center;
         }
-       
+        
         .knob {
-            width: 54px;
-            height: 54px;
+            width: 60px;
+            height: 60px;
             background: radial-gradient(circle at 30% 30%, #666, #222);
             border: 6px solid #111;
             border-radius: 50%;
-            box-shadow: inset 0 0 12px #000, 0 0 14px var(--neon-green);
-            position: relative;
+            box-shadow: inset 0 0 12px #000, 0 0 15px var(--neon-green);
             cursor: pointer;
             transition: transform 0.1s ease;
         }
-       
-        .knob::after {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            width: 6px;
-            height: 20px;
-            background: #ffcc00;
-            transform: translate(-50%, -50%) rotate(45deg);
-        }
-       
+        
         .knob-label {
             text-align: center;
-            font-size: 10px;
+            font-size: 11px;
             color: #ffcc00;
-            margin-top: 6px;
+            margin-top: 8px;
             text-shadow: 0 0 6px #ffcc00;
-            font-weight: bold;
         }
-
-        /* Link Cards */
-        .linkcards-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-top: 15px;
-        }
-
-        .link-card {
-            background: #111;
-            border: 3px solid #556677;
-            padding: 12px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            text-decoration: none;
-            color: inherit;
-            display: block;
-        }
-
-        .link-card:hover {
-            border-color: #ffcc00;
-            transform: translateY(-3px);
-        }
-
-        .link-card img {
-            width: 100%;
-            height: auto;
-            max-height: 160px;
-            object-fit: cover;
-            border: 2px solid #333;
-            margin-bottom: 10px;
-        }
-
-        /* Gallery Groups */
-        .gallery-groups-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-top: 15px;
-        }
-
-        .gallery-group-card {
-            background: #111;
-            border: 3px solid #556677;
-            overflow: hidden;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .gallery-group-card:hover {
-            border-color: #ffcc00;
-            transform: translateY(-3px);
-        }
-
-        .gallery-group-card img {
-            width: 100%;
-            height: auto;
-            display: block;
-        }
-
-        .group-name {
-            background: #1a1a2e;
-            color: #ffcc00;
-            font-size: 13px;
-            padding: 8px;
-            text-align: center;
-            border-top: 2px solid #334455;
-        }
-
-        /* LIGHTBOX */
-        #lightbox {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.92);
-            z-index: 9999;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            flex-direction: column;
-        }
-
-        #lightbox.active {
-            display: flex;
-        }
-
-        #lightbox img {
-            max-width: 90vw;
-            max-height: 75vh;
-            border: 4px solid #556677;
-        }
-
-        .lightbox-controls {
-            margin-top: 20px;
-            display: flex;
-            gap: 20px;
-            align-items: center;
-        }
-
-        .lightbox-btn {
-            background: #222;
-            color: #ffcc00;
-            border: 3px solid #556677;
-            padding: 10px 20px;
-            font-family: 'Press Start 2P', cursive;
-            font-size: 14px;
-            cursor: pointer;
-        }
-
-        .lightbox-btn:hover {
-            background: #ffcc00;
-            color: #000;
-        }
-
-        /* Mobile Responsive */
+        
         @media (max-width: 768px) {
-            .tv-frame {
-                flex-direction: column;
-            }
-            .right-panel {
-                flex-direction: row;
-                margin-left: 0;
-                margin-top: 15px;
-                width: 100%;
-            }
+            .tv-frame { flex-direction: column; }
+            .right-panel { flex-direction: row; margin-left: 0; margin-top: 15px; }
         }
     </style>
 </head>
 <body>
     <div class="tv-frame">
         <div class="screen">
-            <div class="content"></div>
-            <div class="no-signal-text" id="noSignalText" style="display:none;">NO SIGNAL<br><span style="font-size:12px;">CHANNEL OFF AIR</span></div>
+            <div class="content" id="content"></div>
         </div>
-       
+        
         <div class="right-panel">
             <div>
                 <div class="knob" id="vhfKnob"></div>
@@ -261,28 +117,12 @@
         </div>
     </div>
 
-    <!-- LIGHTBOX -->
-    <div id="lightbox">
-        <img id="lightbox-image" src="" alt="">
-        <div class="lightbox-controls">
-            <button class="lightbox-btn" onclick="prevLightboxImage()">◀ Prev</button>
-            <div id="lightbox-counter"></div>
-            <button class="lightbox-btn" onclick="nextLightboxImage()">Next ▶</button>
-            <button class="lightbox-btn" onclick="closeLightbox()" style="margin-left: 30px;">Close</button>
-        </div>
-    </div>
-
     <script>
         let currentMode = 'vhf';
         let vhfIndex = 0;
         let uhfIndex = 0;
         let lastMode = 'vhf';
         let scheduleData = { vhf: [], uhf: [] };
-        let vRot = 0;
-        let uRot = 0;
-
-        let currentGalleryImages = [];
-        let currentLightboxIndex = 0;
 
         async function loadSchedule() {
             try {
@@ -290,14 +130,13 @@
                 if (!res.ok) throw new Error('Backend error');
                 scheduleData = await res.json();
             } catch (err) {
-                console.error("Failed to load schedule from backend.");
-                // Fallback data
+                console.error("Using fallback data");
                 scheduleData = {
                     vhf: [
                         { id: "home", name: "HOME", schedule: "Welcome message" },
                         { id: "writing", name: "WRITING", schedule: "Random Encounters" },
                         { id: "games", name: "GAMES", schedule: "Retro gaming hub" },
-                        { id: "pixelart", name: "PIXEL ART", schedule: "Pixel Art Galleries", presentation: "gallery", media: [] },
+                        { id: "pixelart", name: "PIXEL ART", schedule: "Pixel Art Galleries" },
                         { id: "films", name: "FILMS", schedule: "Film related content" },
                         { id: "tv", name: "TV", schedule: "TV related content" },
                         { id: "where", name: "WHERE CAN YOU FIND ME?", schedule: "Social links" }
@@ -315,10 +154,9 @@
         }
 
         function generateContent() {
-            const container = document.querySelector('.content');
+            const container = document.getElementById('content');
             container.innerHTML = '';
 
-            // Render VHF channels
             scheduleData.vhf.forEach((ch, i) => {
                 const div = document.createElement('div');
                 div.id = ch.id;
@@ -327,7 +165,6 @@
                 container.appendChild(div);
             });
 
-            // Render UHF channels
             scheduleData.uhf.forEach((ch, i) => {
                 const div = document.createElement('div');
                 div.id = ch.id;
@@ -340,21 +177,15 @@
         function updateDisplay() {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
 
-            const noSignal = document.getElementById('noSignalText');
-
             if (currentMode === 'vhf') {
-                if (vhfIndex === 0) {
-                    // Show guide (you can add guide logic here later)
-                } else {
+                if (vhfIndex > 0) {
                     const ch = scheduleData.vhf[vhfIndex - 1];
                     if (ch && document.getElementById(ch.id)) {
                         document.getElementById(ch.id).classList.add('active');
                     }
                 }
             } else {
-                if (uhfIndex === 0) {
-                    // Show guide
-                } else {
+                if (uhfIndex > 0) {
                     const ch = scheduleData.uhf[uhfIndex - 1];
                     if (ch && document.getElementById(ch.id)) {
                         document.getElementById(ch.id).classList.add('active');
@@ -368,8 +199,7 @@
             else vhfIndex = (vhfIndex + 1) % (scheduleData.vhf.length + 1);
             currentMode = 'vhf';
             lastMode = 'vhf';
-            vRot = (vRot + 45) % 360;
-            document.getElementById('vhfKnob').style.transform = `rotate(${vRot}deg)`;
+            document.getElementById('vhfKnob').style.transform = `rotate(${(vhfIndex * 45) % 360}deg)`;
             updateDisplay();
         }
 
@@ -378,8 +208,7 @@
             else uhfIndex = (uhfIndex + 1) % (scheduleData.uhf.length + 1);
             currentMode = 'uhf';
             lastMode = 'uhf';
-            uRot = (uRot + 45) % 360;
-            document.getElementById('uhfKnob').style.transform = `rotate(${uRot}deg)`;
+            document.getElementById('uhfKnob').style.transform = `rotate(${(uhfIndex * 45) % 360}deg)`;
             updateDisplay();
         }
 
