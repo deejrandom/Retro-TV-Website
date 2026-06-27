@@ -1,147 +1,398 @@
-from flask import Flask, jsonify, request, render_template_string, redirect
-from flask_cors import CORS
-import json
-import os
-
-app = Flask(__name__)
-CORS(app)
-
-app.secret_key = "RetroTV_SecretKey_2026_FixNow"
-
-SCHEDULE_FILE = 'schedule.json'
-
-def load_schedule():
-    if os.path.exists(SCHEDULE_FILE):
-        with open(SCHEDULE_FILE, "r") as f:
-            return json.load(f)
-    return {"vhf": [], "uhf": []}
-
-def save_schedule(data):
-    with open(SCHEDULE_FILE, "w") as f:
-        json.dump(data, f, indent=2)
-
-# =====================
-# ADMIN PAGE (No login required for now)
-# =====================
-ADMIN_HTML = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Retro TV Admin</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Warren C. Bennett's Retro Future</title>
     <style>
-        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 30px; max-width: 1100px; margin: 0 auto; }
-        h1, h2 { color: #ffcc00; }
-        .section { background: #111; border: 3px solid #334455; padding: 20px; margin-bottom: 30px; }
-        input, select, button { background: #222; color: #fff; border: 2px solid #555; padding: 8px; margin: 6px 0; font-family: inherit; width: 100%; box-sizing: border-box; }
-        button { background: #39ff14; color: #000; cursor: pointer; font-weight: bold; width: auto; padding: 10px 18px; }
-        button:hover { background: #ffcc00; }
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+       
+        :root {
+            --neon-pink: #ff00ff;
+            --neon-blue: #00ffff;
+            --neon-green: #39ff14;
+        }
+       
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+       
+        body {
+            background: linear-gradient(135deg, #0a0a1f 0%, #1a0033 100%);
+            color: var(--neon-blue);
+            font-family: 'Press Start 2P', cursive;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+        }
+       
+        .tv-frame {
+            width: 100%;
+            max-width: 1020px;
+            aspect-ratio: 16 / 12.5;
+            background: #1a1a1a;
+            border: 32px solid #111;
+            border-radius: 12px;
+            box-shadow: 0 0 80px var(--neon-pink),
+                        0 0 140px var(--neon-blue),
+                        inset 0 0 60px rgba(0,0,0,0.95);
+            position: relative;
+            z-index: 2;
+            padding: 22px;
+            display: flex;
+        }
+       
+        .screen {
+            flex: 1;
+            background: #000;
+            border: 12px solid #222;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: inset 0 0 50px rgba(0,0,0,0.9);
+            position: relative;
+        }
+       
+        .content {
+            flex: 1;
+            padding: 15px 20px 20px;
+            overflow-y: auto;
+            position: relative;
+            z-index: 6;
+        }
+       
+        .section { display: none; }
+        .section.active { display: block; }
+       
+        .channel-title {
+            font-size: 17px;
+            color: var(--neon-green);
+            margin-bottom: 12px;
+            text-shadow: 0 0 10px var(--neon-green);
+            border-bottom: 3px solid var(--neon-green);
+            padding-bottom: 6px;
+        }
+       
+        .right-panel {
+            width: 70px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 30px;
+            margin-left: 20px;
+            align-items: center;
+        }
+       
+        .knob {
+            width: 54px;
+            height: 54px;
+            background: radial-gradient(circle at 30% 30%, #666, #222);
+            border: 6px solid #111;
+            border-radius: 50%;
+            box-shadow: inset 0 0 12px #000, 0 0 14px var(--neon-green);
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+       
+        .knob::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 6px;
+            height: 20px;
+            background: #ffcc00;
+            transform: translate(-50%, -50%) rotate(45deg);
+        }
+       
+        .knob-label {
+            text-align: center;
+            font-size: 10px;
+            color: #ffcc00;
+            margin-top: 6px;
+            text-shadow: 0 0 6px #ffcc00;
+            font-weight: bold;
+        }
+
+        /* Link Cards */
+        .linkcards-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 15px;
+        }
+
+        .link-card {
+            background: #111;
+            border: 3px solid #556677;
+            padding: 12px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .link-card:hover {
+            border-color: #ffcc00;
+            transform: translateY(-3px);
+        }
+
+        .link-card img {
+            width: 100%;
+            height: auto;
+            max-height: 160px;
+            object-fit: cover;
+            border: 2px solid #333;
+            margin-bottom: 10px;
+        }
+
+        /* Gallery Groups */
+        .gallery-groups-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 15px;
+        }
+
+        .gallery-group-card {
+            background: #111;
+            border: 3px solid #556677;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .gallery-group-card:hover {
+            border-color: #ffcc00;
+            transform: translateY(-3px);
+        }
+
+        .gallery-group-card img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        .group-name {
+            background: #1a1a2e;
+            color: #ffcc00;
+            font-size: 13px;
+            padding: 8px;
+            text-align: center;
+            border-top: 2px solid #334455;
+        }
+
+        /* LIGHTBOX */
+        #lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.92);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+
+        #lightbox.active {
+            display: flex;
+        }
+
+        #lightbox img {
+            max-width: 90vw;
+            max-height: 75vh;
+            border: 4px solid #556677;
+        }
+
+        .lightbox-controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .lightbox-btn {
+            background: #222;
+            color: #ffcc00;
+            border: 3px solid #556677;
+            padding: 10px 20px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .lightbox-btn:hover {
+            background: #ffcc00;
+            color: #000;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .tv-frame {
+                flex-direction: column;
+            }
+            .right-panel {
+                flex-direction: row;
+                margin-left: 0;
+                margin-top: 15px;
+                width: 100%;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>Retro TV Admin</h1>
-    
-    <div class="section">
-        <h2>Add New Channel</h2>
-        <select id="newBand"><option value="vhf">VHF</option><option value="uhf">UHF</option></select>
-        <input type="text" id="newChannelName" placeholder="Channel Name">
-        <input type="text" id="newChannelSchedule" placeholder="Schedule text">
-        <select id="newPresentation">
-            <option value="single">Single</option>
-            <option value="gallery">Gallery</option>
-            <option value="linkcards">Link Cards</option>
-        </select>
-        <button onclick="addChannel()">Add Channel</button>
+    <div class="tv-frame">
+        <div class="screen">
+            <div class="content"></div>
+            <div class="no-signal-text" id="noSignalText" style="display:none;">NO SIGNAL<br><span style="font-size:12px;">CHANNEL OFF AIR</span></div>
+        </div>
+       
+        <div class="right-panel">
+            <div>
+                <div class="knob" id="vhfKnob"></div>
+                <div class="knob-label">VHF</div>
+            </div>
+            <div>
+                <div class="knob" id="uhfKnob"></div>
+                <div class="knob-label">UHF</div>
+            </div>
+        </div>
     </div>
 
-    <div class="section">
-        <h2>Manage Channels</h2>
-        <div id="channelList"></div>
-    </div>
-
-    <div class="section">
-        <h2>Guide Scroll Speed</h2>
-        <input type="number" id="scrollSpeed" step="0.05" value="0.36">
-        <button onclick="saveScrollSpeed()">Save Speed</button>
+    <!-- LIGHTBOX -->
+    <div id="lightbox">
+        <img id="lightbox-image" src="" alt="">
+        <div class="lightbox-controls">
+            <button class="lightbox-btn" onclick="prevLightboxImage()">◀ Prev</button>
+            <div id="lightbox-counter"></div>
+            <button class="lightbox-btn" onclick="nextLightboxImage()">Next ▶</button>
+            <button class="lightbox-btn" onclick="closeLightbox()" style="margin-left: 30px;">Close</button>
+        </div>
     </div>
 
     <script>
-        let scheduleData = {};
+        let currentMode = 'vhf';
+        let vhfIndex = 0;
+        let uhfIndex = 0;
+        let lastMode = 'vhf';
+        let scheduleData = { vhf: [], uhf: [] };
+        let vRot = 0;
+        let uRot = 0;
+
+        let currentGalleryImages = [];
+        let currentLightboxIndex = 0;
 
         async function loadSchedule() {
-            const res = await fetch('/api/schedule');
-            scheduleData = await res.json();
-            renderChannels();
+            try {
+                const res = await fetch('https://retro-tv-website.onrender.com/api/schedule');
+                if (!res.ok) throw new Error('Backend error');
+                scheduleData = await res.json();
+            } catch (err) {
+                console.error("Failed to load schedule from backend.");
+                // Fallback data
+                scheduleData = {
+                    vhf: [
+                        { id: "home", name: "HOME", schedule: "Welcome message" },
+                        { id: "writing", name: "WRITING", schedule: "Random Encounters" },
+                        { id: "games", name: "GAMES", schedule: "Retro gaming hub" },
+                        { id: "pixelart", name: "PIXEL ART", schedule: "Pixel Art Galleries", presentation: "gallery", media: [] },
+                        { id: "films", name: "FILMS", schedule: "Film related content" },
+                        { id: "tv", name: "TV", schedule: "TV related content" },
+                        { id: "where", name: "WHERE CAN YOU FIND ME?", schedule: "Social links" }
+                    ],
+                    uhf: [
+                        { id: "uhf1", name: "CARTOONS", schedule: "Public Domain Cartoons" },
+                        { id: "uhf2", name: "CARTOONS", schedule: "More Public Domain Cartoons" },
+                        { id: "uhf3", name: "TV SHOWS", schedule: "Classic Public Domain TV" },
+                        { id: "uhf4", name: "TV SHOWS", schedule: "More Classic TV" },
+                        { id: "uhf5", name: "FILMS", schedule: "Double Indemnity - All day" },
+                        { id: "uhf6", name: "FILMS", schedule: "More Public Domain Films" }
+                    ]
+                };
+            }
         }
 
-        function renderChannels() {
-            const container = document.getElementById('channelList');
+        function generateContent() {
+            const container = document.querySelector('.content');
             container.innerHTML = '';
 
-            ['vhf', 'uhf'].forEach(band => {
-                (scheduleData[band] || []).forEach((ch, index) => {
-                    const div = document.createElement('div');
-                    div.className = 'media-item';
-                    div.innerHTML = `
-                        <strong>${band.toUpperCase()} ${index + 2} • ${ch.name}</strong><br><br>
-                        <button onclick="editChannel('${band}', ${index})">Edit</button>
-                        <button onclick="deleteChannel('${band}', ${index})" style="background:#ff4444; color:white;">Delete</button>
-                    `;
-                    container.appendChild(div);
-                });
+            // Render VHF channels
+            scheduleData.vhf.forEach((ch, i) => {
+                const div = document.createElement('div');
+                div.id = ch.id;
+                div.className = 'section vhf-section';
+                div.innerHTML = `<h2 class="channel-title">VHF ${i + 2} • ${ch.name}</h2><p>${ch.schedule || ''}</p>`;
+                container.appendChild(div);
+            });
+
+            // Render UHF channels
+            scheduleData.uhf.forEach((ch, i) => {
+                const div = document.createElement('div');
+                div.id = ch.id;
+                div.className = 'section uhf-section';
+                div.innerHTML = `<h2 class="channel-title">UHF ${i + 2} • ${ch.name}</h2><p>${ch.schedule || ''}</p>`;
+                container.appendChild(div);
             });
         }
 
-        async function addChannel() {
-            // Basic add channel function
-            alert("Channel adding will be restored in the next version.");
+        function updateDisplay() {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+
+            const noSignal = document.getElementById('noSignalText');
+
+            if (currentMode === 'vhf') {
+                if (vhfIndex === 0) {
+                    // Show guide (you can add guide logic here later)
+                } else {
+                    const ch = scheduleData.vhf[vhfIndex - 1];
+                    if (ch && document.getElementById(ch.id)) {
+                        document.getElementById(ch.id).classList.add('active');
+                    }
+                }
+            } else {
+                if (uhfIndex === 0) {
+                    // Show guide
+                } else {
+                    const ch = scheduleData.uhf[uhfIndex - 1];
+                    if (ch && document.getElementById(ch.id)) {
+                        document.getElementById(ch.id).classList.add('active');
+                    }
+                }
+            }
         }
 
-        function editChannel(band, index) {
-            alert("Edit feature coming back soon.");
+        function nextVHF() {
+            if (lastMode !== 'vhf') vhfIndex = 0;
+            else vhfIndex = (vhfIndex + 1) % (scheduleData.vhf.length + 1);
+            currentMode = 'vhf';
+            lastMode = 'vhf';
+            vRot = (vRot + 45) % 360;
+            document.getElementById('vhfKnob').style.transform = `rotate(${vRot}deg)`;
+            updateDisplay();
         }
 
-        async function deleteChannel(band, index) {
-            if (!confirm("Delete this channel?")) return;
-            scheduleData[band].splice(index, 1);
-            await fetch('/api/schedule', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(scheduleData)
-            });
-            loadSchedule();
+        function nextUHF() {
+            if (lastMode !== 'uhf') uhfIndex = 0;
+            else uhfIndex = (uhfIndex + 1) % (scheduleData.uhf.length + 1);
+            currentMode = 'uhf';
+            lastMode = 'uhf';
+            uRot = (uRot + 45) % 360;
+            document.getElementById('uhfKnob').style.transform = `rotate(${uRot}deg)`;
+            updateDisplay();
         }
 
-        async function saveScrollSpeed() {
-            scheduleData.guide_scroll_speed = parseFloat(document.getElementById('scrollSpeed').value);
-            await fetch('/api/schedule', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(scheduleData)
-            });
-            alert("Scroll speed saved!");
+        async function init() {
+            await loadSchedule();
+            generateContent();
+            updateDisplay();
         }
 
-        loadSchedule();
+        document.getElementById('vhfKnob').addEventListener('click', nextVHF);
+        document.getElementById('uhfKnob').addEventListener('click', nextUHF);
+
+        init();
     </script>
 </body>
 </html>
-"""
-
-@app.route('/admin')
-def admin():
-    return render_template_string(ADMIN_HTML)
-
-@app.route('/api/schedule')
-def get_schedule():
-    return jsonify(load_schedule())
-
-@app.route('/api/schedule', methods=['POST'])
-def update_schedule():
-    new_data = request.get_json()
-    if not new_data:
-        return jsonify({"error": "No data"}), 400
-    save_schedule(new_data)
-    return jsonify({"message": "Saved"})
-
-if __name__ == '__main__':
-    app.run(debug=True)
