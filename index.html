@@ -64,7 +64,7 @@
             padding-bottom: 8px;
         }
 
-        /* Knobs with graphics */
+        /* Knobs */
         .right-panel {
             width: 75px;
             display: flex;
@@ -106,6 +106,39 @@
             text-shadow: 0 0 6px #ffcc00;
         }
 
+        /* Guide */
+        .guide-scroll-container {
+            height: 380px;
+            overflow: hidden;
+            border: 3px solid #334455;
+            background: #0a0a1f;
+        }
+        
+        .guide-grid {
+            display: grid;
+            grid-template-columns: 100px 1fr;
+            gap: 6px 14px;
+            font-size: 12px;
+            padding: 10px;
+        }
+        
+        .guide-entry {
+            cursor: pointer;
+            padding: 6px 8px;
+        }
+        
+        .guide-entry:hover {
+            background: rgba(57, 255, 20, 0.15);
+            color: var(--neon-green);
+        }
+        
+        .guide-separator {
+            grid-column: 1 / -1;
+            height: 3px;
+            background: linear-gradient(to right, transparent, #39ff14, transparent);
+            margin: 12px 0;
+        }
+
         /* Gallery */
         .gallery-groups-grid {
             display: grid;
@@ -118,7 +151,6 @@
             border: 3px solid #556677;
             overflow: hidden;
             cursor: pointer;
-            transition: all 0.2s ease;
         }
         
         .gallery-group-card:hover {
@@ -137,7 +169,6 @@
             font-size: 13px;
             padding: 8px;
             text-align: center;
-            border-top: 2px solid #334455;
         }
 
         /* Lightbox */
@@ -174,11 +205,6 @@
             font-family: 'Press Start 2P', cursive;
             font-size: 14px;
             cursor: pointer;
-        }
-        
-        .lightbox-btn:hover {
-            background: #ffcc00;
-            color: #000;
         }
     </style>
 </head>
@@ -217,6 +243,9 @@
         let uhfIndex = 0;
         let lastMode = 'vhf';
         let scheduleData = { vhf: [], uhf: [] };
+        let vRot = 0;
+        let uRot = 0;
+        let guideScrollRAF = null;
 
         let currentGalleryImages = [];
         let currentLightboxIndex = 0;
@@ -224,7 +253,7 @@
         async function loadSchedule() {
             try {
                 const res = await fetch('https://retro-tv-website.onrender.com/api/schedule');
-                if (!res.ok) throw new Error('Backend error');
+                if (!res.ok) throw new Error();
                 scheduleData = await res.json();
             } catch (err) {
                 console.error("Using fallback data");
@@ -250,110 +279,87 @@
             }
         }
 
-        function openLightbox(images, startIndex = 0) {
-            currentGalleryImages = images;
-            currentLightboxIndex = startIndex;
-            const lightbox = document.getElementById('lightbox');
-            const img = document.getElementById('lightbox-image');
-            img.src = currentGalleryImages[currentLightboxIndex].url;
-            document.getElementById('lightbox-counter').textContent = `${currentLightboxIndex + 1} / ${currentGalleryImages.length}`;
-            lightbox.classList.add('active');
-        }
-
-        function closeLightbox() {
-            document.getElementById('lightbox').classList.remove('active');
-        }
-
-        function nextLightboxImage() {
-            currentLightboxIndex = (currentLightboxIndex + 1) % currentGalleryImages.length;
-            document.getElementById('lightbox-image').src = currentGalleryImages[currentLightboxIndex].url;
-            document.getElementById('lightbox-counter').textContent = `${currentLightboxIndex + 1} / ${currentGalleryImages.length}`;
-        }
-
-        function prevLightboxImage() {
-            currentLightboxIndex = (currentLightboxIndex - 1 + currentGalleryImages.length) % currentGalleryImages.length;
-            document.getElementById('lightbox-image').src = currentGalleryImages[currentLightboxIndex].url;
-            document.getElementById('lightbox-counter').textContent = `${currentLightboxIndex + 1} / ${currentGalleryImages.length}`;
-        }
-
         function generateContent() {
             const container = document.getElementById('content');
             container.innerHTML = '';
 
-            function createChannelElement(ch, band, index) {
+            // VHF Channels
+            scheduleData.vhf.forEach((ch, i) => {
                 const div = document.createElement('div');
                 div.id = ch.id;
-                div.className = `section ${band}-section`;
+                div.className = 'section vhf-section';
+                div.innerHTML = `<h2 class="channel-title">VHF ${i + 2} • ${ch.name}</h2><p>${ch.schedule || ''}</p>`;
+                container.appendChild(div);
+            });
 
-                let html = `<h2 class="channel-title">${band.toUpperCase()} ${index + 2} • ${ch.name}</h2>`;
+            // UHF Channels
+            scheduleData.uhf.forEach((ch, i) => {
+                const div = document.createElement('div');
+                div.id = ch.id;
+                div.className = 'section uhf-section';
+                div.innerHTML = `<h2 class="channel-title">UHF ${i + 2} • ${ch.name}</h2><p>${ch.schedule || ''}</p>`;
+                container.appendChild(div);
+            });
 
-                if (ch.presentation === 'gallery' && ch.media) {
-                    const images = ch.media.filter(m => m.type === 'image');
-                    const groups = {};
+            // VHF Guide
+            const vGuide = document.createElement('div');
+            vGuide.id = 'vhfguide';
+            vGuide.className = 'section vhf-section';
+            let vRows = '';
+            scheduleData.vhf.forEach((ch, i) => {
+                vRows += `<div class="guide-entry" onclick="jumpToVHF(${i+1})">VHF ${i+2}</div><div class="guide-entry" onclick="jumpToVHF(${i+1})">${ch.name}</div>`;
+            });
+            vGuide.innerHTML = `
+                <h2 class="channel-title">VHF 0 • CHANNEL GUIDE</h2>
+                <div class="guide-scroll-container">
+                    <div class="guide-grids-wrapper">
+                        <div class="guide-grid">${vRows}</div>
+                        <div class="guide-grid">${vRows}</div>
+                        <div class="guide-grid">${vRows}</div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(vGuide);
 
-                    images.forEach(img => {
-                        const groupName = img.gallery_group || 'Uncategorized';
-                        if (!groups[groupName]) groups[groupName] = [];
-                        groups[groupName].push(img);
-                    });
-
-                    let gridHTML = `<div class="gallery-groups-grid">`;
-
-                    Object.keys(groups).forEach(groupName => {
-                        const groupImages = groups[groupName];
-                        let cover = groupImages.find(m => m.is_group_cover === true) || groupImages[0];
-
-                        gridHTML += `
-                            <div class="gallery-group-card" onclick='openLightbox(${JSON.stringify(groupImages)}, 0)'>
-                                <img src="${cover.url}" alt="${groupName}">
-                                <div class="group-name">${groupName}</div>
-                            </div>
-                        `;
-                    });
-
-                    gridHTML += `</div>`;
-                    html += gridHTML;
-
-                } else if (ch.media) {
-                    ch.media.forEach(m => {
-                        if (m.type === 'youtube' || m.type === 'video') {
-                            let videoId = '';
-                            if (m.url.includes('youtube.com')) videoId = m.url.split('v=')[1]?.split('&')[0];
-                            else if (m.url.includes('youtu.be')) videoId = m.url.split('/').pop();
-
-                            if (videoId) {
-                                html += `<div style="margin:15px 0;">
-                                    <iframe width="100%" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>
-                                </div>`;
-                            }
-                        } else if (m.type === 'image') {
-                            html += `<img src="${m.url}" style="max-width:100%; border:2px solid #333; margin:10px 0;">`;
-                        }
-                    });
-                } else {
-                    html += `<p>${ch.schedule || ''}</p>`;
-                }
-
-                div.innerHTML = html;
-                return div;
-            }
-
-            scheduleData.vhf.forEach((ch, i) => container.appendChild(createChannelElement(ch, 'vhf', i)));
-            scheduleData.uhf.forEach((ch, i) => container.appendChild(createChannelElement(ch, 'uhf', i)));
+            // UHF Guide
+            const uGuide = document.createElement('div');
+            uGuide.id = 'uhfguide';
+            uGuide.className = 'section uhf-section';
+            let uRows = '';
+            scheduleData.uhf.forEach((ch, i) => {
+                uRows += `<div class="guide-entry" onclick="jumpToUHF(${i+1})">UHF ${i+2}</div><div class="guide-entry" onclick="jumpToUHF(${i+1})">${ch.name}</div>`;
+            });
+            uGuide.innerHTML = `
+                <h2 class="channel-title">UHF 0 • CHANNEL GUIDE</h2>
+                <div class="guide-scroll-container">
+                    <div class="guide-grids-wrapper">
+                        <div class="guide-grid">${uRows}</div>
+                        <div class="guide-grid">${uRows}</div>
+                        <div class="guide-grid">${uRows}</div>
+                    </div>
+                </div>
+            `;
+            container.appendChild(uGuide);
         }
 
         function updateDisplay() {
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
 
             if (currentMode === 'vhf') {
-                if (vhfIndex > 0) {
+                if (vhfIndex === 0) {
+                    const guide = document.getElementById('vhfguide');
+                    if (guide) guide.classList.add('active');
+                } else {
                     const ch = scheduleData.vhf[vhfIndex - 1];
                     if (ch && document.getElementById(ch.id)) {
                         document.getElementById(ch.id).classList.add('active');
                     }
                 }
             } else {
-                if (uhfIndex > 0) {
+                if (uhfIndex === 0) {
+                    const guide = document.getElementById('uhfguide');
+                    if (guide) guide.classList.add('active');
+                } else {
                     const ch = scheduleData.uhf[uhfIndex - 1];
                     if (ch && document.getElementById(ch.id)) {
                         document.getElementById(ch.id).classList.add('active');
@@ -367,7 +373,8 @@
             else vhfIndex = (vhfIndex + 1) % (scheduleData.vhf.length + 1);
             currentMode = 'vhf';
             lastMode = 'vhf';
-            document.getElementById('vhfKnob').style.transform = `rotate(${(vhfIndex * 45) % 360}deg)`;
+            vRot = (vRot + 45) % 360;
+            document.getElementById('vhfKnob').style.transform = `rotate(${vRot}deg)`;
             updateDisplay();
         }
 
@@ -376,7 +383,20 @@
             else uhfIndex = (uhfIndex + 1) % (scheduleData.uhf.length + 1);
             currentMode = 'uhf';
             lastMode = 'uhf';
-            document.getElementById('uhfKnob').style.transform = `rotate(${(uhfIndex * 45) % 360}deg)`;
+            uRot = (uRot + 45) % 360;
+            document.getElementById('uhfKnob').style.transform = `rotate(${uRot}deg)`;
+            updateDisplay();
+        }
+
+        function jumpToVHF(index) {
+            currentMode = 'vhf';
+            vhfIndex = index;
+            updateDisplay();
+        }
+
+        function jumpToUHF(index) {
+            currentMode = 'uhf';
+            uhfIndex = index;
             updateDisplay();
         }
 
