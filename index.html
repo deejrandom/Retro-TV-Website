@@ -187,14 +187,7 @@
             border: none;
         }
 
-        // =====================
-// CANVAS STATIC + HORIZONTAL ROLL
-// =====================
-let staticCanvas = null;
-let staticCtx = null;
-let staticAnimationFrame = null;
-let rollOffset = 0;
-let staticIntensity = 0.45; // Medium intensity (adjust between 0.2 - 0.8)
+
 
 function initStaticCanvas() {
     staticCanvas = document.getElementById('staticCanvas');
@@ -524,6 +517,89 @@ function stopStaticEffect() {
 
         let currentGalleryImages = [];
         let currentLightboxIndex = 0;
+// =====================
+// CANVAS STATIC + HORIZONTAL ROLL
+// =====================
+let staticCanvas = null;
+let staticCtx = null;
+let staticAnimationFrame = null;
+let rollOffset = 0;
+let staticIntensity = 0.5; // Medium intensity
+
+function initStaticCanvas() {
+    staticCanvas = document.getElementById('staticCanvas');
+    if (!staticCanvas) {
+        console.error("staticCanvas element not found!");
+        return false;
+    }
+
+    staticCtx = staticCanvas.getContext('2d', { alpha: true });
+
+    function resizeCanvas() {
+        const screen = document.querySelector('.screen');
+        if (screen && staticCanvas) {
+            staticCanvas.width = screen.clientWidth;
+            staticCanvas.height = screen.clientHeight;
+        }
+    }
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    return true;
+}
+
+function drawStatic() {
+    if (!staticCtx || !staticCanvas) return;
+
+    const w = staticCanvas.width;
+    const h = staticCanvas.height;
+
+    const imageData = staticCtx.createImageData(w, h);
+    const data = imageData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+        const noise = Math.random() * 255;
+
+        // Slight cyan/blue tint
+        data[i]     = noise * 0.7;
+        data[i + 1] = noise * 0.9;
+        data[i + 2] = noise;
+        data[i + 3] = 255 * staticIntensity;
+    }
+
+    staticCtx.putImageData(imageData, 0, 0);
+
+    // Medium horizontal roll
+    rollOffset = (rollOffset + 1.1) % h;
+    staticCtx.save();
+    staticCtx.translate(0, rollOffset);
+    staticCtx.drawImage(staticCanvas, 0, -h);
+    staticCtx.restore();
+
+    staticAnimationFrame = requestAnimationFrame(drawStatic);
+}
+
+function startStaticEffect() {
+    if (!staticCanvas) {
+        if (!initStaticCanvas()) return;
+    }
+
+    staticCanvas.style.display = 'block';
+
+    if (!staticAnimationFrame) {
+        drawStatic();
+    }
+}
+
+function stopStaticEffect() {
+    if (staticAnimationFrame) {
+        cancelAnimationFrame(staticAnimationFrame);
+        staticAnimationFrame = null;
+    }
+    if (staticCanvas) {
+        staticCanvas.style.display = 'none';
+    }
+}
 
         function formatText(text) {
             if (!text) return '';
