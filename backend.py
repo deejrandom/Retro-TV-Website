@@ -24,7 +24,7 @@ def load_user(user_id):
     return User(user_id)
 
 # =====================
-# DEFAULT SCHEDULE (This is your full site data)
+# DEFAULT SCHEDULE WITH CORRECT IMAGE PATHS
 # =====================
 DEFAULT_SCHEDULE = {
     "guide_scroll_speed": 0.36,
@@ -38,10 +38,31 @@ DEFAULT_SCHEDULE = {
             "schedule": "Pixel Art Galleries",
             "presentation": "gallery",
             "media": [
-                {"title": "Final Fantasy Logo", "type": "image", "url": "https://warrencbennett.com/retro-tv/ff-Logo-NES.webp", "gallery_group": "Final Fantasy", "is_group_cover": True},
-                {"title": "Black Mage", "type": "image", "url": "https://warrencbennett.com/retro-tv/black-mage-nes.png", "gallery_group": "Final Fantasy"},
-                {"title": "Red Mage", "type": "image", "url": "https://warrencbennett.com/retro-tv/redmage-nes.png", "gallery_group": "Final Fantasy"},
-                {"title": "White Mage", "type": "image", "url": "https://warrencbennett.com/retro-tv/white-mage-nes.png", "gallery_group": "Final Fantasy"}
+                {
+                    "title": "Final Fantasy Logo",
+                    "type": "image",
+                    "url": "https://warrencbennett.com/Final%20Fantasy%20Images/ff-Logo-NES.webp",
+                    "gallery_group": "Final Fantasy",
+                    "is_group_cover": True
+                },
+                {
+                    "title": "Black Mage",
+                    "type": "image",
+                    "url": "https://warrencbennett.com/Final%20Fantasy%20Images/black-mage-nes.png",
+                    "gallery_group": "Final Fantasy"
+                },
+                {
+                    "title": "Red Mage",
+                    "type": "image",
+                    "url": "https://warrencbennett.com/Final%20Fantasy%20Images/redmage-nes.png",
+                    "gallery_group": "Final Fantasy"
+                },
+                {
+                    "title": "White Mage",
+                    "type": "image",
+                    "url": "https://warrencbennett.com/Final%20Fantasy%20Images/white-mage-nes.png",
+                    "gallery_group": "Final Fantasy"
+                }
             ]
         },
         {"id": "films", "name": "FILMS", "schedule": "Film related content", "presentation": "single", "media": []},
@@ -70,11 +91,14 @@ def load_schedule():
     if os.path.exists(SCHEDULE_FILE):
         with open(SCHEDULE_FILE, "r") as f:
             data = json.load(f)
-            # Make sure it has the new structure
-            if "vhf" not in data:
-                data = DEFAULT_SCHEDULE
-            return data
-    return DEFAULT_SCHEDULE
+        if not data.get("vhf") or len(data.get("vhf", [])) == 0:
+            print("Schedule empty — loading default data with gallery")
+            save_schedule(DEFAULT_SCHEDULE)
+            return DEFAULT_SCHEDULE
+        return data
+    else:
+        save_schedule(DEFAULT_SCHEDULE)
+        return DEFAULT_SCHEDULE
 
 def save_schedule(data):
     with open(SCHEDULE_FILE, "w") as f:
@@ -98,7 +122,7 @@ def update_schedule():
     return jsonify({"message": "Schedule updated successfully"})
 
 # =====================
-# ADMIN + LOGIN (simplified for now)
+# LOGIN + ADMIN
 # =====================
 
 LOGIN_HTML = """
@@ -128,7 +152,7 @@ def login():
 @app.route('/admin')
 @login_required
 def admin():
-    return "Admin panel is working. You can now use it to add/edit channels."
+    return "Admin panel is working. You can now edit channels and media."
 
 if __name__ == '__main__':
     app.run(debug=True)
