@@ -64,6 +64,48 @@
             padding-bottom: 8px;
         }
 
+        /* Knobs with graphics */
+        .right-panel {
+            width: 75px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 30px;
+            margin-left: 20px;
+            align-items: center;
+        }
+        
+        .knob {
+            width: 58px;
+            height: 58px;
+            background: radial-gradient(circle at 30% 30%, #666, #222);
+            border: 6px solid #111;
+            border-radius: 50%;
+            box-shadow: inset 0 0 12px #000, 0 0 15px var(--neon-green);
+            cursor: pointer;
+            position: relative;
+            transition: transform 0.1s ease;
+        }
+        
+        .knob::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 6px;
+            height: 18px;
+            background: #ffcc00;
+            transform: translate(-50%, -50%) rotate(45deg);
+        }
+        
+        .knob-label {
+            text-align: center;
+            font-size: 11px;
+            color: #ffcc00;
+            margin-top: 8px;
+            text-shadow: 0 0 6px #ffcc00;
+        }
+
         /* Gallery */
         .gallery-groups-grid {
             display: grid;
@@ -138,33 +180,6 @@
             background: #ffcc00;
             color: #000;
         }
-
-        .right-panel {
-            width: 75px;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            gap: 30px;
-            margin-left: 20px;
-            align-items: center;
-        }
-        
-        .knob {
-            width: 58px;
-            height: 58px;
-            background: radial-gradient(circle at 30% 30%, #666, #222);
-            border: 6px solid #111;
-            border-radius: 50%;
-            box-shadow: inset 0 0 12px #000, 0 0 15px var(--neon-green);
-            cursor: pointer;
-        }
-        
-        .knob-label {
-            text-align: center;
-            font-size: 11px;
-            color: #ffcc00;
-            margin-top: 8px;
-        }
     </style>
 </head>
 <body>
@@ -209,9 +224,29 @@
         async function loadSchedule() {
             try {
                 const res = await fetch('https://retro-tv-website.onrender.com/api/schedule');
+                if (!res.ok) throw new Error('Backend error');
                 scheduleData = await res.json();
             } catch (err) {
-                console.error("Failed to load schedule");
+                console.error("Using fallback data");
+                scheduleData = {
+                    vhf: [
+                        { id: "home", name: "HOME", schedule: "Welcome message" },
+                        { id: "writing", name: "WRITING", schedule: "Random Encounters" },
+                        { id: "games", name: "GAMES", schedule: "Retro gaming hub" },
+                        { id: "pixelart", name: "PIXEL ART", schedule: "Pixel Art Galleries", presentation: "gallery", media: [] },
+                        { id: "films", name: "FILMS", schedule: "Film related content" },
+                        { id: "tv", name: "TV", schedule: "TV related content" },
+                        { id: "where", name: "WHERE CAN YOU FIND ME?", schedule: "Social links" }
+                    ],
+                    uhf: [
+                        { id: "uhf1", name: "CARTOONS", schedule: "Public Domain Cartoons" },
+                        { id: "uhf2", name: "CARTOONS", schedule: "More Public Domain Cartoons" },
+                        { id: "uhf3", name: "TV SHOWS", schedule: "Classic Public Domain TV" },
+                        { id: "uhf4", name: "TV SHOWS", schedule: "More Classic TV" },
+                        { id: "uhf5", name: "FILMS", schedule: "Double Indemnity - All day" },
+                        { id: "uhf6", name: "FILMS", schedule: "More Public Domain Films" }
+                    ]
+                };
             }
         }
 
@@ -253,7 +288,6 @@
                 let html = `<h2 class="channel-title">${band.toUpperCase()} ${index + 2} • ${ch.name}</h2>`;
 
                 if (ch.presentation === 'gallery' && ch.media) {
-                    // Gallery rendering
                     const images = ch.media.filter(m => m.type === 'image');
                     const groups = {};
 
@@ -281,7 +315,6 @@
                     html += gridHTML;
 
                 } else if (ch.media) {
-                    // Normal media (YouTube, images, text)
                     ch.media.forEach(m => {
                         if (m.type === 'youtube' || m.type === 'video') {
                             let videoId = '';
