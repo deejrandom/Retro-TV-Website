@@ -23,25 +23,25 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 15px;
         }
         
         .tv-frame {
             width: 100%;
-            max-width: 1000px;
+            max-width: 1020px;
             aspect-ratio: 16 / 12.5;
             background: #1a1a1a;
-            border: 30px solid #111;
-            border-radius: 10px;
+            border: 32px solid #111;
+            border-radius: 12px;
             box-shadow: 0 0 80px var(--neon-pink), 0 0 140px var(--neon-blue);
-            padding: 20px;
+            padding: 22px;
             display: flex;
         }
         
         .screen {
             flex: 1;
             background: #000;
-            border: 10px solid #222;
+            border: 12px solid #222;
             overflow: hidden;
             position: relative;
         }
@@ -56,33 +56,107 @@
         .section.active { display: block; }
         
         .channel-title {
-            font-size: 18px;
+            font-size: 17px;
             color: var(--neon-green);
             margin-bottom: 15px;
             text-shadow: 0 0 10px var(--neon-green);
             border-bottom: 3px solid var(--neon-green);
             padding-bottom: 8px;
         }
+
+        /* Gallery */
+        .gallery-groups-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
         
+        .gallery-group-card {
+            background: #111;
+            border: 3px solid #556677;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .gallery-group-card:hover {
+            border-color: #ffcc00;
+            transform: translateY(-3px);
+        }
+        
+        .gallery-group-card img {
+            width: 100%;
+            display: block;
+        }
+        
+        .group-name {
+            background: #1a1a2e;
+            color: #ffcc00;
+            font-size: 13px;
+            padding: 8px;
+            text-align: center;
+            border-top: 2px solid #334455;
+        }
+
+        /* Lightbox */
+        #lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.92);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        
+        #lightbox.active { display: flex; }
+        
+        #lightbox img {
+            max-width: 90vw;
+            max-height: 75vh;
+            border: 4px solid #556677;
+        }
+        
+        .lightbox-controls {
+            margin-top: 20px;
+            display: flex;
+            gap: 20px;
+        }
+        
+        .lightbox-btn {
+            background: #222;
+            color: #ffcc00;
+            border: 3px solid #556677;
+            padding: 10px 20px;
+            font-family: 'Press Start 2P', cursive;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        
+        .lightbox-btn:hover {
+            background: #ffcc00;
+            color: #000;
+        }
+
         .right-panel {
-            width: 80px;
+            width: 75px;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            gap: 35px;
+            gap: 30px;
             margin-left: 20px;
             align-items: center;
         }
         
         .knob {
-            width: 60px;
-            height: 60px;
+            width: 58px;
+            height: 58px;
             background: radial-gradient(circle at 30% 30%, #666, #222);
             border: 6px solid #111;
             border-radius: 50%;
             box-shadow: inset 0 0 12px #000, 0 0 15px var(--neon-green);
             cursor: pointer;
-            transition: transform 0.1s ease;
         }
         
         .knob-label {
@@ -90,12 +164,6 @@
             font-size: 11px;
             color: #ffcc00;
             margin-top: 8px;
-            text-shadow: 0 0 6px #ffcc00;
-        }
-        
-        @media (max-width: 768px) {
-            .tv-frame { flex-direction: column; }
-            .right-panel { flex-direction: row; margin-left: 0; margin-top: 15px; }
         }
     </style>
 </head>
@@ -117,6 +185,17 @@
         </div>
     </div>
 
+    <!-- LIGHTBOX -->
+    <div id="lightbox">
+        <img id="lightbox-image" src="" alt="">
+        <div class="lightbox-controls">
+            <button class="lightbox-btn" onclick="prevLightboxImage()">◀ Prev</button>
+            <div id="lightbox-counter"></div>
+            <button class="lightbox-btn" onclick="nextLightboxImage()">Next ▶</button>
+            <button class="lightbox-btn" onclick="closeLightbox()" style="margin-left:30px;">Close</button>
+        </div>
+    </div>
+
     <script>
         let currentMode = 'vhf';
         let vhfIndex = 0;
@@ -124,54 +203,110 @@
         let lastMode = 'vhf';
         let scheduleData = { vhf: [], uhf: [] };
 
+        let currentGalleryImages = [];
+        let currentLightboxIndex = 0;
+
         async function loadSchedule() {
             try {
                 const res = await fetch('https://retro-tv-website.onrender.com/api/schedule');
-                if (!res.ok) throw new Error('Backend error');
                 scheduleData = await res.json();
             } catch (err) {
-                console.error("Using fallback data");
-                scheduleData = {
-                    vhf: [
-                        { id: "home", name: "HOME", schedule: "Welcome message" },
-                        { id: "writing", name: "WRITING", schedule: "Random Encounters" },
-                        { id: "games", name: "GAMES", schedule: "Retro gaming hub" },
-                        { id: "pixelart", name: "PIXEL ART", schedule: "Pixel Art Galleries" },
-                        { id: "films", name: "FILMS", schedule: "Film related content" },
-                        { id: "tv", name: "TV", schedule: "TV related content" },
-                        { id: "where", name: "WHERE CAN YOU FIND ME?", schedule: "Social links" }
-                    ],
-                    uhf: [
-                        { id: "uhf1", name: "CARTOONS", schedule: "Public Domain Cartoons" },
-                        { id: "uhf2", name: "CARTOONS", schedule: "More Public Domain Cartoons" },
-                        { id: "uhf3", name: "TV SHOWS", schedule: "Classic Public Domain TV" },
-                        { id: "uhf4", name: "TV SHOWS", schedule: "More Classic TV" },
-                        { id: "uhf5", name: "FILMS", schedule: "Double Indemnity - All day" },
-                        { id: "uhf6", name: "FILMS", schedule: "More Public Domain Films" }
-                    ]
-                };
+                console.error("Failed to load schedule");
             }
+        }
+
+        function openLightbox(images, startIndex = 0) {
+            currentGalleryImages = images;
+            currentLightboxIndex = startIndex;
+            const lightbox = document.getElementById('lightbox');
+            const img = document.getElementById('lightbox-image');
+            img.src = currentGalleryImages[currentLightboxIndex].url;
+            document.getElementById('lightbox-counter').textContent = `${currentLightboxIndex + 1} / ${currentGalleryImages.length}`;
+            lightbox.classList.add('active');
+        }
+
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('active');
+        }
+
+        function nextLightboxImage() {
+            currentLightboxIndex = (currentLightboxIndex + 1) % currentGalleryImages.length;
+            document.getElementById('lightbox-image').src = currentGalleryImages[currentLightboxIndex].url;
+            document.getElementById('lightbox-counter').textContent = `${currentLightboxIndex + 1} / ${currentGalleryImages.length}`;
+        }
+
+        function prevLightboxImage() {
+            currentLightboxIndex = (currentLightboxIndex - 1 + currentGalleryImages.length) % currentGalleryImages.length;
+            document.getElementById('lightbox-image').src = currentGalleryImages[currentLightboxIndex].url;
+            document.getElementById('lightbox-counter').textContent = `${currentLightboxIndex + 1} / ${currentGalleryImages.length}`;
         }
 
         function generateContent() {
             const container = document.getElementById('content');
             container.innerHTML = '';
 
-            scheduleData.vhf.forEach((ch, i) => {
+            function createChannelElement(ch, band, index) {
                 const div = document.createElement('div');
                 div.id = ch.id;
-                div.className = 'section vhf-section';
-                div.innerHTML = `<h2 class="channel-title">VHF ${i + 2} • ${ch.name}</h2><p>${ch.schedule || ''}</p>`;
-                container.appendChild(div);
-            });
+                div.className = `section ${band}-section`;
 
-            scheduleData.uhf.forEach((ch, i) => {
-                const div = document.createElement('div');
-                div.id = ch.id;
-                div.className = 'section uhf-section';
-                div.innerHTML = `<h2 class="channel-title">UHF ${i + 2} • ${ch.name}</h2><p>${ch.schedule || ''}</p>`;
-                container.appendChild(div);
-            });
+                let html = `<h2 class="channel-title">${band.toUpperCase()} ${index + 2} • ${ch.name}</h2>`;
+
+                if (ch.presentation === 'gallery' && ch.media) {
+                    // Gallery rendering
+                    const images = ch.media.filter(m => m.type === 'image');
+                    const groups = {};
+
+                    images.forEach(img => {
+                        const groupName = img.gallery_group || 'Uncategorized';
+                        if (!groups[groupName]) groups[groupName] = [];
+                        groups[groupName].push(img);
+                    });
+
+                    let gridHTML = `<div class="gallery-groups-grid">`;
+
+                    Object.keys(groups).forEach(groupName => {
+                        const groupImages = groups[groupName];
+                        let cover = groupImages.find(m => m.is_group_cover === true) || groupImages[0];
+
+                        gridHTML += `
+                            <div class="gallery-group-card" onclick='openLightbox(${JSON.stringify(groupImages)}, 0)'>
+                                <img src="${cover.url}" alt="${groupName}">
+                                <div class="group-name">${groupName}</div>
+                            </div>
+                        `;
+                    });
+
+                    gridHTML += `</div>`;
+                    html += gridHTML;
+
+                } else if (ch.media) {
+                    // Normal media (YouTube, images, text)
+                    ch.media.forEach(m => {
+                        if (m.type === 'youtube' || m.type === 'video') {
+                            let videoId = '';
+                            if (m.url.includes('youtube.com')) videoId = m.url.split('v=')[1]?.split('&')[0];
+                            else if (m.url.includes('youtu.be')) videoId = m.url.split('/').pop();
+
+                            if (videoId) {
+                                html += `<div style="margin:15px 0;">
+                                    <iframe width="100%" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen></iframe>
+                                </div>`;
+                            }
+                        } else if (m.type === 'image') {
+                            html += `<img src="${m.url}" style="max-width:100%; border:2px solid #333; margin:10px 0;">`;
+                        }
+                    });
+                } else {
+                    html += `<p>${ch.schedule || ''}</p>`;
+                }
+
+                div.innerHTML = html;
+                return div;
+            }
+
+            scheduleData.vhf.forEach((ch, i) => container.appendChild(createChannelElement(ch, 'vhf', i)));
+            scheduleData.uhf.forEach((ch, i) => container.appendChild(createChannelElement(ch, 'uhf', i)));
         }
 
         function updateDisplay() {
