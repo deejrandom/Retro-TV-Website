@@ -101,7 +101,7 @@ LOGIN_HTML = """
 """
 
 # =====================
-# FULL ADMIN PAGE
+# FULL ADMIN PAGE (WITH ADD/DELETE CHANNEL)
 # =====================
 ADMIN_HTML = """
 <!DOCTYPE html>
@@ -114,18 +114,38 @@ ADMIN_HTML = """
         body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 30px; max-width: 1100px; margin: 0 auto; }
         h1, h2 { color: #ffcc00; }
         .section { background: #111; border: 3px solid #334455; padding: 20px; margin-bottom: 30px; }
-        input, select, textarea, button { background: #222; color: #fff; border: 2px solid #556677; padding: 10px; margin: 8px 0; font-family: inherit; width: 100%; box-sizing: border-box; }
+        input, select, button { background: #222; color: #fff; border: 2px solid #556677; padding: 10px; margin: 8px 0; font-family: inherit; width: 100%; box-sizing: border-box; }
         button { background: #39ff14; color: #000; cursor: pointer; font-weight: bold; width: auto; padding: 10px 20px; }
         button:hover { background: #ffcc00; }
         .media-item { background: #1a1a1a; border: 2px solid #444; padding: 15px; margin: 12px 0; }
         .success { color: #39ff14; background: #112211; border: 2px solid #39ff14; padding: 12px; margin: 15px 0; }
         .error { color: #ff6666; background: #331111; border: 2px solid #ff6666; padding: 12px; margin: 15px 0; }
         label { display: block; margin-top: 12px; color: #ffcc00; }
+        .danger-btn { background: #aa3333; color: white; }
     </style>
 </head>
 <body>
     <h1>Retro TV Admin Panel</h1>
-    
+
+    <!-- ADD NEW CHANNEL -->
+    <div class="section">
+        <h2>Add New Channel</h2>
+        <label>Band</label>
+        <select id="newBand">
+            <option value="vhf">VHF</option>
+            <option value="uhf">UHF</option>
+        </select>
+        
+        <label>Channel Name</label>
+        <input type="text" id="newChannelName" placeholder="e.g. Retro Gaming">
+        
+        <label>Schedule / Description (optional)</label>
+        <input type="text" id="newChannelSchedule" placeholder="What's on this channel?">
+        
+        <button onclick="addNewChannel()">+ Add Channel</button>
+    </div>
+
+    <!-- SELECT CHANNEL -->
     <div class="section">
         <h2>1. Select Channel</h2>
         <div>
@@ -142,6 +162,7 @@ ADMIN_HTML = """
         </div>
     </div>
 
+    <!-- EDIT CHANNEL -->
     <div class="section" id="channelEditor" style="display:none;">
         <h2>2. Edit Channel</h2>
         
@@ -160,6 +181,8 @@ ADMIN_HTML = """
         
         <button onclick="saveChannelChanges()">Save Channel Changes</button>
         
+        <button onclick="deleteCurrentChannel()" class="danger-btn" style="margin-top: 20px;">Delete This Channel</button>
+
         <h3 style="margin-top:30px;">Media Items</h3>
         <div id="mediaList"></div>
         
@@ -189,11 +212,12 @@ ADMIN_HTML = """
         <button onclick="addNewMedia()" style="margin-top:10px;">+ Add Media</button>
     </div>
 
+    <!-- SCROLL SPEED -->
     <div class="section">
         <h2>3. Guide Scroll Speed</h2>
         <input type="number" id="scrollSpeed" step="0.05" min="0.1" max="1.5" style="width:150px;">
         <button onclick="saveScrollSpeed()">Save Scroll Speed</button>
-        <p style="color:#aaa; font-size:13px;">Lower = slower. Recommended: 0.20 – 0.80</p>
+        <p style="color:#aaa; font-size:13px;">Lower = slower classic crawl. Recommended: 0.20 – 0.80</p>
     </div>
 
     <div id="statusMessage"></div>
@@ -268,6 +292,50 @@ ADMIN_HTML = """
         function toggleMediaFields() {
             const type = document.getElementById('newMediaType').value;
             document.getElementById('galleryFields').style.display = (type === 'image') ? 'block' : 'none';
+        }
+
+        async function addNewChannel() {
+            const band = document.getElementById('newBand').value;
+            const name = document.getElementById('newChannelName').value.trim();
+            const schedule = document.getElementById('newChannelSchedule').value.trim();
+
+            if (!name) {
+                alert("Channel name is required.");
+                return;
+            }
+
+            const newChannel = {
+                id: name.toLowerCase().replace(/\s+/g, '-'),
+                name: name,
+                schedule: schedule || "New channel",
+                presentation: "single",
+                media: []
+            };
+
+            if (!scheduleData[band]) scheduleData[band] = [];
+            scheduleData[band].push(newChannel);
+
+            await saveSchedule();
+            showStatus("Channel added successfully!", true);
+            
+            // Refresh dropdown
+            document.getElementById('bandSelect').value = band;
+            loadChannels();
+            
+            // Clear form
+            document.getElementById('newChannelName').value = '';
+            document.getElementById('newChannelSchedule').value = '';
+        }
+
+        async function deleteCurrentChannel() {
+            if (!confirm("Are you sure you want to delete this channel?")) return;
+
+            scheduleData[currentBand].splice(currentIndex, 1);
+            await saveSchedule();
+            showStatus("Channel deleted.", true);
+            
+            document.getElementById('channelEditor').style.display = 'none';
+            loadChannels();
         }
 
         async function addNewMedia() {
