@@ -115,15 +115,15 @@
             font-weight: bold;
         }
 
-        /* Link Cards & Gallery */
-        .linkcards-grid, .gallery-groups-grid {
+        /* Link Cards */
+        .linkcards-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 16px;
             margin-top: 15px;
         }
 
-        .link-card, .gallery-group-card {
+        .link-card {
             background: #111;
             border: 3px solid #556677;
             padding: 12px;
@@ -131,20 +131,48 @@
             transition: all 0.2s ease;
             text-decoration: none;
             color: inherit;
+            display: block;
         }
 
-        .link-card:hover, .gallery-group-card:hover {
+        .link-card:hover {
             border-color: #ffcc00;
             transform: translateY(-3px);
         }
 
-        .link-card img, .gallery-group-card img {
+        .link-card img {
             width: 100%;
             height: auto;
             max-height: 160px;
             object-fit: cover;
             border: 2px solid #333;
             margin-bottom: 10px;
+        }
+
+        /* Gallery Groups */
+        .gallery-groups-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-top: 15px;
+        }
+
+        .gallery-group-card {
+            background: #111;
+            border: 3px solid #556677;
+            overflow: hidden;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .gallery-group-card:hover {
+            border-color: #ffcc00;
+            transform: translateY(-3px);
+        }
+
+        .gallery-group-card img {
+            width: 100%;
+            height: auto;
+            display: block;
         }
 
         .group-name {
@@ -182,6 +210,7 @@
             margin-top: 20px;
             display: flex;
             gap: 20px;
+            align-items: center;
         }
 
         .lightbox-btn {
@@ -199,7 +228,7 @@
             color: #000;
         }
 
-        /* Mobile */
+        /* Mobile Responsive */
         @media (max-width: 768px) {
             .tv-frame {
                 flex-direction: column;
@@ -208,6 +237,7 @@
                 flex-direction: row;
                 margin-left: 0;
                 margin-top: 15px;
+                width: 100%;
             }
         }
     </style>
@@ -260,8 +290,8 @@
                 if (!res.ok) throw new Error('Backend error');
                 scheduleData = await res.json();
             } catch (err) {
-                console.error("Failed to load schedule from backend. Using fallback.");
-                // Fallback data so the site doesn't break completely
+                console.error("Failed to load schedule from backend.");
+                // Fallback data
                 scheduleData = {
                     vhf: [
                         { id: "home", name: "HOME", schedule: "Welcome message" },
@@ -288,20 +318,21 @@
             const container = document.querySelector('.content');
             container.innerHTML = '';
 
-            // Basic channel rendering (you can expand this with your full logic)
+            // Render VHF channels
             scheduleData.vhf.forEach((ch, i) => {
                 const div = document.createElement('div');
                 div.id = ch.id;
                 div.className = 'section vhf-section';
-                div.innerHTML = `<h2 class="channel-title">VHF ${i + 2} • ${ch.name}</h2><p>${ch.schedule}</p>`;
+                div.innerHTML = `<h2 class="channel-title">VHF ${i + 2} • ${ch.name}</h2><p>${ch.schedule || ''}</p>`;
                 container.appendChild(div);
             });
 
+            // Render UHF channels
             scheduleData.uhf.forEach((ch, i) => {
                 const div = document.createElement('div');
                 div.id = ch.id;
                 div.className = 'section uhf-section';
-                div.innerHTML = `<h2 class="channel-title">UHF ${i + 2} • ${ch.name}</h2><p>${ch.schedule}</p>`;
+                div.innerHTML = `<h2 class="channel-title">UHF ${i + 2} • ${ch.name}</h2><p>${ch.schedule || ''}</p>`;
                 container.appendChild(div);
             });
         }
@@ -310,11 +341,10 @@
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
 
             const noSignal = document.getElementById('noSignalText');
-            if (!noSignal) return; // Safety check
 
             if (currentMode === 'vhf') {
                 if (vhfIndex === 0) {
-                    // Show guide
+                    // Show guide (you can add guide logic here later)
                 } else {
                     const ch = scheduleData.vhf[vhfIndex - 1];
                     if (ch && document.getElementById(ch.id)) {
