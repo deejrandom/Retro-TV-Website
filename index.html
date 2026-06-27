@@ -876,27 +876,43 @@ function updateDisplay() {
             updateDisplay();
         }
 
-        function nextVHF() {
-            stopGuideScroll();
-            if (lastMode !== 'vhf') vhfIndex = 0;
-            else vhfIndex = (vhfIndex + 1) % (scheduleData.vhf.length + 1);
-            currentMode = 'vhf';
-            lastMode = 'vhf';
-            vRot = (vRot + 45) % 360;
-            document.getElementById('vhfKnob').style.transform = `rotate(${vRot}deg)`;
-            updateDisplay();
-        }
+function nextVHF() {
+    stopGuideScroll();
 
-        function nextUHF() {
-            stopGuideScroll();
-            if (lastMode !== 'uhf') uhfIndex = 0;
-            else uhfIndex = (uhfIndex + 1) % (scheduleData.uhf.length + 1);
-            currentMode = 'uhf';
-            lastMode = 'uhf';
-            uRot = (uRot + 45) % 360;
-            document.getElementById('uhfKnob').style.transform = `rotate(${uRot}deg)`;
-            updateDisplay();
-        }
+    if (lastMode !== 'vhf') {
+        vhfIndex = 0;
+    } else {
+        vhfIndex = (vhfIndex + 1) % (scheduleData.vhf.length + 1);
+    }
+
+    currentMode = 'vhf';
+    lastMode = 'vhf';
+
+    // Calculate rotation based on channel index (much more natural)
+    vRot = vhfIndex * 45;
+    document.getElementById('vhfKnob').style.transform = `rotate(${vRot}deg)`;
+
+    updateDisplay();
+}
+
+function nextUHF() {
+    stopGuideScroll();
+
+    if (lastMode !== 'uhf') {
+        uhfIndex = 0;
+    } else {
+        uhfIndex = (uhfIndex + 1) % (scheduleData.uhf.length + 1);
+    }
+
+    currentMode = 'uhf';
+    lastMode = 'uhf';
+
+    // Calculate rotation based on channel index
+    uRot = uhfIndex * 45;
+    document.getElementById('uhfKnob').style.transform = `rotate(${uRot}deg)`;
+
+    updateDisplay();
+}
 
         function startGuideScroll(guideElement) {
             stopGuideScroll();
