@@ -24,7 +24,7 @@ def load_user(user_id):
     return User(user_id)
 
 # =====================
-# DEFAULT SCHEDULE (with your gallery)
+# DEFAULT SCHEDULE
 # =====================
 DEFAULT_SCHEDULE = {
     "guide_scroll_speed": 0.36,
@@ -76,7 +76,32 @@ def save_schedule(data):
         json.dump(data, f, indent=2)
 
 # =====================
-# FULL ADMIN HTML
+# LOGIN PAGE
+# =====================
+LOGIN_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Login - Retro TV Admin</title>
+    <style>
+        body { background: #0a0a1f; color: #39ff14; font-family: 'Press Start 2P', system-ui; padding: 60px; text-align: center; }
+        input { padding: 14px; font-size: 20px; width: 300px; background: #111; color: #fff; border: 3px solid #556677; }
+        button { padding: 14px 30px; font-size: 20px; background: #39ff14; color: #000; border: none; cursor: pointer; margin-top: 20px; }
+        button:hover { background: #ffcc00; }
+    </style>
+</head>
+<body>
+    <h1>Retro TV Admin</h1>
+    <form method="POST">
+        <input type="password" name="password" placeholder="Enter Password" required><br>
+        <button type="submit">Login</button>
+    </form>
+</body>
+</html>
+"""
+
+# =====================
+# FULL ADMIN PAGE
 # =====================
 ADMIN_HTML = """
 <!DOCTYPE html>
@@ -95,7 +120,6 @@ ADMIN_HTML = """
         .media-item { background: #1a1a1a; border: 2px solid #444; padding: 15px; margin: 12px 0; }
         .success { color: #39ff14; background: #112211; border: 2px solid #39ff14; padding: 12px; margin: 15px 0; }
         .error { color: #ff6666; background: #331111; border: 2px solid #ff6666; padding: 12px; margin: 15px 0; }
-        .channel-select { margin-bottom: 20px; }
         label { display: block; margin-top: 12px; color: #ffcc00; }
     </style>
 </head>
@@ -104,7 +128,7 @@ ADMIN_HTML = """
     
     <div class="section">
         <h2>1. Select Channel</h2>
-        <div class="channel-select">
+        <div>
             <label>Band:</label>
             <select id="bandSelect" onchange="loadChannels()">
                 <option value="vhf">VHF</option>
@@ -158,8 +182,7 @@ ADMIN_HTML = """
             <div id="galleryFields" style="display:none;">
                 <label>Gallery Group Name</label>
                 <input type="text" id="newGalleryGroup" placeholder="e.g. Final Fantasy">
-                
-                <label><input type="checkbox" id="isCover"> Make this the cover image for the group</label>
+                <label><input type="checkbox" id="isCover"> Make this the cover image</label>
             </div>
         </div>
         
@@ -170,7 +193,7 @@ ADMIN_HTML = """
         <h2>3. Guide Scroll Speed</h2>
         <input type="number" id="scrollSpeed" step="0.05" min="0.1" max="1.5" style="width:150px;">
         <button onclick="saveScrollSpeed()">Save Scroll Speed</button>
-        <p style="color:#aaa; font-size:13px;">Lower = slower classic crawl. Recommended: 0.20 – 0.80</p>
+        <p style="color:#aaa; font-size:13px;">Lower = slower. Recommended: 0.20 – 0.80</p>
     </div>
 
     <div id="statusMessage"></div>
@@ -244,8 +267,7 @@ ADMIN_HTML = """
 
         function toggleMediaFields() {
             const type = document.getElementById('newMediaType').value;
-            const galleryFields = document.getElementById('galleryFields');
-            galleryFields.style.display = (type === 'image') ? 'block' : 'none';
+            document.getElementById('galleryFields').style.display = (type === 'image') ? 'block' : 'none';
         }
 
         async function addNewMedia() {
@@ -274,7 +296,6 @@ ADMIN_HTML = """
             await saveSchedule();
             renderMediaList();
             
-            // clear form
             document.getElementById('newMediaTitle').value = '';
             document.getElementById('newMediaUrl').value = '';
             document.getElementById('newGalleryGroup').value = '';
@@ -329,9 +350,8 @@ ADMIN_HTML = """
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(scheduleData)
             });
-            const result = await res.json();
             if (!res.ok) {
-                showStatus(result.error || "Failed to save", false);
+                showStatus("Failed to save changes", false);
             }
         }
 
