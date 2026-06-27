@@ -187,6 +187,83 @@
             border: none;
         }
 
+        // =====================
+// CANVAS STATIC + HORIZONTAL ROLL
+// =====================
+let staticCanvas = null;
+let staticCtx = null;
+let staticAnimationFrame = null;
+let rollOffset = 0;
+let staticIntensity = 0.45; // Medium intensity (adjust between 0.2 - 0.8)
+
+function initStaticCanvas() {
+    staticCanvas = document.getElementById('staticCanvas');
+    if (!staticCanvas) return;
+
+    staticCtx = staticCanvas.getContext('2d', { alpha: true });
+
+    function resizeCanvas() {
+        const screen = document.querySelector('.screen');
+        if (screen && staticCanvas) {
+            staticCanvas.width = screen.clientWidth;
+            staticCanvas.height = screen.clientHeight;
+        }
+    }
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+}
+
+function drawStatic() {
+    if (!staticCtx || !staticCanvas) return;
+
+    const w = staticCanvas.width;
+    const h = staticCanvas.height;
+
+    const imageData = staticCtx.createImageData(w, h);
+    const data = imageData.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+        const noise = Math.random() * 255;
+
+        // Slight cyan/blue tint
+        data[i]     = noise * 0.75;   // Red
+        data[i + 1] = noise * 0.95;   // Green
+        data[i + 2] = noise;          // Blue (stronger for cyan tint)
+        data[i + 3] = 255 * staticIntensity;
+    }
+
+    staticCtx.putImageData(imageData, 0, 0);
+
+    // Medium horizontal roll
+    rollOffset = (rollOffset + 1.2) % h;
+    staticCtx.save();
+    staticCtx.translate(0, rollOffset);
+    staticCtx.drawImage(staticCanvas, 0, -h);
+    staticCtx.restore();
+
+    staticAnimationFrame = requestAnimationFrame(drawStatic);
+}
+
+function startStaticEffect() {
+    if (!staticCanvas) initStaticCanvas();
+    if (!staticCanvas) return;
+
+    staticCanvas.style.display = 'block';
+    if (!staticAnimationFrame) {
+        drawStatic();
+    }
+}
+
+function stopStaticEffect() {
+    if (staticAnimationFrame) {
+        cancelAnimationFrame(staticAnimationFrame);
+        staticAnimationFrame = null;
+    }
+    if (staticCanvas) {
+        staticCanvas.style.display = 'none';
+    }
+}
         .static {
             position: absolute;
             inset: 0;
@@ -388,15 +465,29 @@
             min-width: 80px;
             text-align: center;
         }
+
+    #staticCanvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 5;
+    image-rendering: pixelated;
+    display: none;
+    pointer-events: none;
+}
     </style>
 </head>
 <body>
-    <div class="tv-frame">
-        <div class="screen">
-            <div class="content"></div>
-            <div class="static" id="staticOverlay"></div>
-            <div class="no-signal-text" id="noSignalText">NO SIGNAL<br><span style="font-size:12px;">CHANNEL OFF AIR</span></div>
-        </div>
+   <div class="tv-frame">
+    <div class="screen">
+        <div class="content"></div>
+
+        <!-- New Canvas Static (replaces old .static div) -->
+        <canvas id="staticCanvas"></canvas>
+
+        <div class="no-signal-text" id="noSignalText">NO SIGNAL<br><span style="font-size:12px;">CHANNEL OFF AIR</span></div>
+    </div>
        
         <div class="right-panel">
             <div>
@@ -644,49 +735,56 @@
             startGuideScroll(guide);
         }
 
-        function updateDisplay() {
-            stopGuideScroll();
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+function updateDisplay() {
+    stopGuideScroll();
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
 
-            const screen = document.querySelector('.screen');
-            const st = document.getElementById('staticOverlay');
-            const tx = document.getElementById('noSignalText');
+    const screen = document.querySelector('.screen');
+    const tx = document.getElementById('noSignalText');
 
-            if (currentMode === 'vhf') {
-                if (vhfIndex === 0) {
-                    const guide = document.getElementById('vhfguide');
-                    guide.classList.add('active');
-                    startGuideScroll(guide);
-                } else {
-                    const ch = scheduleData.vhf[vhfIndex - 1];
-                    if (ch && document.getElementById(ch.id)) {
-                        document.getElementById(ch.id).classList.add('active');
-                    }
-                }
-            } else {
-                if (uhfIndex === 0) {
-                    const guide = document.getElementById('uhfguide');
-                    guide.classList.add('active');
-                    startGuideScroll(guide);
-                } else {
-                    const ch = scheduleData.uhf[uhfIndex - 1];
-                    if (ch && document.getElementById(ch.id)) {
-                        document.getElementById(ch.id).classList.add('active');
-                    }
-                }
+    let isEmptyChannel = false;
+
+    if (currentMode === 'vhf') {
+        if (vhfIndex === 0) {
+            const guide = document.getElementById('vhfguide');
+            if (guide) {
+                guide.classList.add('active');
+                startGuideScroll(guide);
             }
-
-            const activeSection = document.querySelector('.section.active');
-            if (activeSection && activeSection.classList.contains('empty-channel')) {
-                st.style.display = 'block';
-                tx.style.display = 'block';
-                screen.classList.add('no-signal-active');
-            } else {
-                st.style.display = 'none';
-                tx.style.display = 'none';
-                screen.classList.remove('no-signal-active');
+        } else {
+            const ch = scheduleData.vhf[vhfIndex - 1];
+            if (ch && document.getElementById(ch.id)) {
+                document.getElementById(ch.id).classList.add('active');
+                isEmptyChannel = !ch.media || ch.media.length === 0;
             }
         }
+    } else {
+        if (uhfIndex === 0) {
+            const guide = document.getElementById('uhfguide');
+            if (guide) {
+                guide.classList.add('active');
+                startGuideScroll(guide);
+            }
+        } else {
+            const ch = scheduleData.uhf[uhfIndex - 1];
+            if (ch && document.getElementById(ch.id)) {
+                document.getElementById(ch.id).classList.add('active');
+                isEmptyChannel = !ch.media || ch.media.length === 0;
+            }
+        }
+    }
+
+    // === NEW CANVAS STATIC + HORIZONTAL ROLL ===
+    if (isEmptyChannel) {
+        startStaticEffect();           // Start canvas static + roll
+        if (tx) tx.style.display = 'block';
+        if (screen) screen.classList.add('no-signal-active');
+    } else {
+        stopStaticEffect();            // Stop canvas static + roll
+        if (tx) tx.style.display = 'none';
+        if (screen) screen.classList.remove('no-signal-active');
+    }
+}
 
         function jumpToVHF(index) {
             stopGuideScroll();
