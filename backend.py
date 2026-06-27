@@ -24,7 +24,7 @@ def load_user(user_id):
     return User(user_id)
 
 # =====================
-# DEFAULT SCHEDULE WITH CORRECT IMAGE PATHS
+# DEFAULT SCHEDULE (with your gallery)
 # =====================
 DEFAULT_SCHEDULE = {
     "guide_scroll_speed": 0.36,
@@ -38,31 +38,10 @@ DEFAULT_SCHEDULE = {
             "schedule": "Pixel Art Galleries",
             "presentation": "gallery",
             "media": [
-                {
-                    "title": "Final Fantasy Logo",
-                    "type": "image",
-                    "url": "https://warrencbennett.com/Final%20Fantasy%20Images/ff-Logo-NES.webp",
-                    "gallery_group": "Final Fantasy",
-                    "is_group_cover": True
-                },
-                {
-                    "title": "Black Mage",
-                    "type": "image",
-                    "url": "https://warrencbennett.com/Final%20Fantasy%20Images/black-mage-nes.png",
-                    "gallery_group": "Final Fantasy"
-                },
-                {
-                    "title": "Red Mage",
-                    "type": "image",
-                    "url": "https://warrencbennett.com/Final%20Fantasy%20Images/redmage-nes.png",
-                    "gallery_group": "Final Fantasy"
-                },
-                {
-                    "title": "White Mage",
-                    "type": "image",
-                    "url": "https://warrencbennett.com/Final%20Fantasy%20Images/white-mage-nes.png",
-                    "gallery_group": "Final Fantasy"
-                }
+                {"title": "Final Fantasy Logo", "type": "image", "url": "https://warrencbennett.com/Final%20Fantasy%20Images/ff-Logo-NES.webp", "gallery_group": "Final Fantasy", "is_group_cover": True},
+                {"title": "Black Mage", "type": "image", "url": "https://warrencbennett.com/Final%20Fantasy%20Images/black-mage-nes.png", "gallery_group": "Final Fantasy"},
+                {"title": "Red Mage", "type": "image", "url": "https://warrencbennett.com/Final%20Fantasy%20Images/redmage-nes.png", "gallery_group": "Final Fantasy"},
+                {"title": "White Mage", "type": "image", "url": "https://warrencbennett.com/Final%20Fantasy%20Images/white-mage-nes.png", "gallery_group": "Final Fantasy"}
             ]
         },
         {"id": "films", "name": "FILMS", "schedule": "Film related content", "presentation": "single", "media": []},
@@ -74,15 +53,9 @@ DEFAULT_SCHEDULE = {
         {"id": "uhf2", "name": "CARTOONS", "schedule": "More Public Domain Cartoons", "presentation": "single", "media": []},
         {"id": "uhf3", "name": "TV SHOWS", "schedule": "Classic Public Domain TV", "presentation": "single", "media": []},
         {"id": "uhf4", "name": "TV SHOWS", "schedule": "More Classic TV", "presentation": "single", "media": []},
-        {
-            "id": "uhf5",
-            "name": "FILMS",
-            "schedule": "Double Indemnity - All day",
-            "presentation": "single",
-            "media": [
-                {"title": "Double Indemnity (1944)", "type": "youtube", "url": "https://www.youtube.com/watch?v=wI5xaum_HlA"}
-            ]
-        },
+        {"id": "uhf5", "name": "FILMS", "schedule": "Double Indemnity - All day", "presentation": "single", "media": [
+            {"title": "Double Indemnity (1944)", "type": "youtube", "url": "https://www.youtube.com/watch?v=wI5xaum_HlA"}
+        ]},
         {"id": "uhf6", "name": "FILMS", "schedule": "More Public Domain Films", "presentation": "single", "media": []}
     ]
 }
@@ -92,17 +65,295 @@ def load_schedule():
         with open(SCHEDULE_FILE, "r") as f:
             data = json.load(f)
         if not data.get("vhf") or len(data.get("vhf", [])) == 0:
-            print("Schedule empty — loading default data with gallery")
             save_schedule(DEFAULT_SCHEDULE)
             return DEFAULT_SCHEDULE
         return data
-    else:
-        save_schedule(DEFAULT_SCHEDULE)
-        return DEFAULT_SCHEDULE
+    save_schedule(DEFAULT_SCHEDULE)
+    return DEFAULT_SCHEDULE
 
 def save_schedule(data):
     with open(SCHEDULE_FILE, "w") as f:
         json.dump(data, f, indent=2)
+
+# =====================
+# FULL ADMIN HTML
+# =====================
+ADMIN_HTML = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro TV Admin</title>
+    <style>
+        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 30px; max-width: 1100px; margin: 0 auto; }
+        h1, h2 { color: #ffcc00; }
+        .section { background: #111; border: 3px solid #334455; padding: 20px; margin-bottom: 30px; }
+        input, select, textarea, button { background: #222; color: #fff; border: 2px solid #556677; padding: 10px; margin: 8px 0; font-family: inherit; width: 100%; box-sizing: border-box; }
+        button { background: #39ff14; color: #000; cursor: pointer; font-weight: bold; width: auto; padding: 10px 20px; }
+        button:hover { background: #ffcc00; }
+        .media-item { background: #1a1a1a; border: 2px solid #444; padding: 15px; margin: 12px 0; }
+        .success { color: #39ff14; background: #112211; border: 2px solid #39ff14; padding: 12px; margin: 15px 0; }
+        .error { color: #ff6666; background: #331111; border: 2px solid #ff6666; padding: 12px; margin: 15px 0; }
+        .channel-select { margin-bottom: 20px; }
+        label { display: block; margin-top: 12px; color: #ffcc00; }
+    </style>
+</head>
+<body>
+    <h1>Retro TV Admin Panel</h1>
+    
+    <div class="section">
+        <h2>1. Select Channel</h2>
+        <div class="channel-select">
+            <label>Band:</label>
+            <select id="bandSelect" onchange="loadChannels()">
+                <option value="vhf">VHF</option>
+                <option value="uhf">UHF</option>
+            </select>
+            
+            <label>Channel:</label>
+            <select id="channelSelect" onchange="loadSelectedChannel()">
+                <option value="">-- Select a channel --</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="section" id="channelEditor" style="display:none;">
+        <h2>2. Edit Channel</h2>
+        
+        <label>Channel Name</label>
+        <input type="text" id="channelName">
+        
+        <label>Schedule / Description</label>
+        <input type="text" id="channelSchedule">
+        
+        <label>Presentation Mode</label>
+        <select id="presentationMode">
+            <option value="single">Single (normal content)</option>
+            <option value="gallery">Gallery (grouped images)</option>
+            <option value="linkcards">Link Cards</option>
+        </select>
+        
+        <button onclick="saveChannelChanges()">Save Channel Changes</button>
+        
+        <h3 style="margin-top:30px;">Media Items</h3>
+        <div id="mediaList"></div>
+        
+        <h3 style="margin-top:30px;">Add New Media</h3>
+        <label>Media Type</label>
+        <select id="newMediaType" onchange="toggleMediaFields()">
+            <option value="image">Image</option>
+            <option value="youtube">YouTube Video</option>
+            <option value="text">Text / Writing</option>
+            <option value="linkcard">Link Card</option>
+        </select>
+        
+        <div id="mediaFields">
+            <label>Title</label>
+            <input type="text" id="newMediaTitle">
+            
+            <label id="urlLabel">URL / Content</label>
+            <input type="text" id="newMediaUrl">
+            
+            <div id="galleryFields" style="display:none;">
+                <label>Gallery Group Name</label>
+                <input type="text" id="newGalleryGroup" placeholder="e.g. Final Fantasy">
+                
+                <label><input type="checkbox" id="isCover"> Make this the cover image for the group</label>
+            </div>
+        </div>
+        
+        <button onclick="addNewMedia()" style="margin-top:10px;">+ Add Media</button>
+    </div>
+
+    <div class="section">
+        <h2>3. Guide Scroll Speed</h2>
+        <input type="number" id="scrollSpeed" step="0.05" min="0.1" max="1.5" style="width:150px;">
+        <button onclick="saveScrollSpeed()">Save Scroll Speed</button>
+        <p style="color:#aaa; font-size:13px;">Lower = slower classic crawl. Recommended: 0.20 – 0.80</p>
+    </div>
+
+    <div id="statusMessage"></div>
+
+    <script>
+        let scheduleData = {};
+        let currentBand = '';
+        let currentIndex = -1;
+
+        async function loadSchedule() {
+            const res = await fetch('/api/schedule');
+            scheduleData = await res.json();
+        }
+
+        function loadChannels() {
+            const band = document.getElementById('bandSelect').value;
+            const select = document.getElementById('channelSelect');
+            select.innerHTML = '<option value="">-- Select a channel --</option>';
+            
+            if (scheduleData[band]) {
+                scheduleData[band].forEach((ch, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.textContent = `${band.toUpperCase()} ${i+2} - ${ch.name}`;
+                    select.appendChild(opt);
+                });
+            }
+            document.getElementById('channelEditor').style.display = 'none';
+        }
+
+        function loadSelectedChannel() {
+            const band = document.getElementById('bandSelect').value;
+            const index = parseInt(document.getElementById('channelSelect').value);
+            if (isNaN(index)) return;
+
+            currentBand = band;
+            currentIndex = index;
+            const ch = scheduleData[band][index];
+
+            document.getElementById('channelName').value = ch.name || '';
+            document.getElementById('channelSchedule').value = ch.schedule || '';
+            document.getElementById('presentationMode').value = ch.presentation || 'single';
+
+            renderMediaList();
+            document.getElementById('channelEditor').style.display = 'block';
+            toggleMediaFields();
+        }
+
+        function renderMediaList() {
+            const container = document.getElementById('mediaList');
+            container.innerHTML = '';
+            const ch = scheduleData[currentBand][currentIndex];
+            if (!ch.media || ch.media.length === 0) {
+                container.innerHTML = '<p style="color:#888;">No media yet.</p>';
+                return;
+            }
+
+            ch.media.forEach((m, i) => {
+                const div = document.createElement('div');
+                div.className = 'media-item';
+                div.innerHTML = `
+                    <strong>${m.title || '(no title)'}</strong> 
+                    <span style="color:#888;">[${m.type}]</span><br>
+                    <small style="color:#aaa;">${m.url ? m.url.substring(0,80) : ''}</small><br><br>
+                    <button onclick="editMedia(${i})">Edit</button>
+                    <button onclick="deleteMedia(${i})" style="background:#aa3333; color:white;">Delete</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function toggleMediaFields() {
+            const type = document.getElementById('newMediaType').value;
+            const galleryFields = document.getElementById('galleryFields');
+            galleryFields.style.display = (type === 'image') ? 'block' : 'none';
+        }
+
+        async function addNewMedia() {
+            const type = document.getElementById('newMediaType').value;
+            const title = document.getElementById('newMediaTitle').value.trim();
+            const url = document.getElementById('newMediaUrl').value.trim();
+            const group = document.getElementById('newGalleryGroup').value.trim();
+            const isCover = document.getElementById('isCover').checked;
+
+            if (!title || !url) {
+                alert("Title and URL are required.");
+                return;
+            }
+
+            const newMedia = { title, type, url };
+            if (type === 'image' && group) {
+                newMedia.gallery_group = group;
+                if (isCover) newMedia.is_group_cover = true;
+            }
+
+            if (!scheduleData[currentBand][currentIndex].media) {
+                scheduleData[currentBand][currentIndex].media = [];
+            }
+            scheduleData[currentBand][currentIndex].media.push(newMedia);
+
+            await saveSchedule();
+            renderMediaList();
+            
+            // clear form
+            document.getElementById('newMediaTitle').value = '';
+            document.getElementById('newMediaUrl').value = '';
+            document.getElementById('newGalleryGroup').value = '';
+            document.getElementById('isCover').checked = false;
+        }
+
+        async function deleteMedia(mediaIndex) {
+            if (!confirm("Delete this media item?")) return;
+            scheduleData[currentBand][currentIndex].media.splice(mediaIndex, 1);
+            await saveSchedule();
+            renderMediaList();
+        }
+
+        function editMedia(mediaIndex) {
+            const m = scheduleData[currentBand][currentIndex].media[mediaIndex];
+            const newTitle = prompt("New title:", m.title || '');
+            if (newTitle !== null) m.title = newTitle;
+
+            const newUrl = prompt("New URL / content:", m.url || '');
+            if (newUrl !== null) m.url = newUrl;
+
+            if (m.type === 'image') {
+                const newGroup = prompt("Gallery Group:", m.gallery_group || '');
+                if (newGroup !== null) m.gallery_group = newGroup;
+            }
+
+            saveSchedule();
+            renderMediaList();
+        }
+
+        async function saveChannelChanges() {
+            const ch = scheduleData[currentBand][currentIndex];
+            ch.name = document.getElementById('channelName').value.trim();
+            ch.schedule = document.getElementById('channelSchedule').value.trim();
+            ch.presentation = document.getElementById('presentationMode').value;
+
+            await saveSchedule();
+            showStatus("Channel saved successfully!", true);
+            loadChannels();
+        }
+
+        async function saveScrollSpeed() {
+            const speed = parseFloat(document.getElementById('scrollSpeed').value);
+            scheduleData.guide_scroll_speed = speed;
+            await saveSchedule();
+            showStatus("Scroll speed saved!", true);
+        }
+
+        async function saveSchedule() {
+            const res = await fetch('/api/schedule?password=' + encodeURIComponent('MuffinBennett!987'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(scheduleData)
+            });
+            const result = await res.json();
+            if (!res.ok) {
+                showStatus(result.error || "Failed to save", false);
+            }
+        }
+
+        function showStatus(msg, success) {
+            const div = document.getElementById('statusMessage');
+            div.className = success ? 'success' : 'error';
+            div.textContent = msg;
+            div.style.display = 'block';
+            setTimeout(() => { div.style.display = 'none'; }, 4000);
+        }
+
+        async function initAdmin() {
+            await loadSchedule();
+            document.getElementById('scrollSpeed').value = scheduleData.guide_scroll_speed || 0.36;
+            loadChannels();
+        }
+
+        initAdmin();
+    </script>
+</body>
+</html>
+"""
 
 # =====================
 # ROUTES
@@ -121,24 +372,6 @@ def update_schedule():
     save_schedule(new_data)
     return jsonify({"message": "Schedule updated successfully"})
 
-# =====================
-# LOGIN + ADMIN
-# =====================
-
-LOGIN_HTML = """
-<!DOCTYPE html>
-<html>
-<head><title>Login</title></head>
-<body style="background:#111; color:#39ff14; font-family: monospace; padding:40px;">
-    <h2>Retro TV Admin Login</h2>
-    <form method="POST">
-        <input type="password" name="password" placeholder="Password" style="padding:10px; font-size:18px;">
-        <button type="submit" style="padding:10px 20px; font-size:18px;">Login</button>
-    </form>
-</body>
-</html>
-"""
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -152,7 +385,7 @@ def login():
 @app.route('/admin')
 @login_required
 def admin():
-    return "Admin panel is working. You can now edit channels and media."
+    return render_template_string(ADMIN_HTML)
 
 if __name__ == '__main__':
     app.run(debug=True)
