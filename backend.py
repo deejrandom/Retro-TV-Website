@@ -28,6 +28,7 @@ def load_user(user_id):
 # =====================
 DEFAULT_SCHEDULE = {
     "guide_scroll_speed": 0.36,
+    "phosphor_persistence": 0.14,
     "vhf": [
         {"id": "home", "name": "HOME", "schedule": "Welcome to Warren C. Bennett's Retro Future", "presentation": "single", "media": []},
         {"id": "writing", "name": "WRITING", "schedule": "Random Encounters", "presentation": "single", "media": []},
@@ -112,7 +113,7 @@ ADMIN_HTML = """
     <title>Retro TV Admin</title>
     <style>
         body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 30px; max-width: 1100px; margin: 0 auto; }
-        h1, h2 { color: #ffcc00; }
+        h1, h2, h3 { color: #ffcc00; }
         .section { background: #111; border: 3px solid #334455; padding: 20px; margin-bottom: 30px; }
         input, select, button { background: #222; color: #fff; border: 2px solid #556677; padding: 10px; margin: 8px 0; font-family: inherit; width: 100%; box-sizing: border-box; }
         button { background: #39ff14; color: #000; cursor: pointer; font-weight: bold; width: auto; padding: 10px 20px; }
@@ -216,12 +217,18 @@ ADMIN_HTML = """
         <button onclick="addNewMedia()" style="margin-top:10px;">+ Add Media</button>
     </div>
 
-    <!-- SCROLL SPEED -->
+    <!-- DISPLAY EFFECTS -->
     <div class="section">
-        <h2>3. Guide Scroll Speed</h2>
+        <h2>Display Effects</h2>
+        
+        <h3>Guide Scroll Speed</h3>
         <input type="number" id="scrollSpeed" step="0.05" min="0.1" max="1.5" style="width:150px;">
         <button onclick="saveScrollSpeed()">Save Scroll Speed</button>
-        <p style="color:#aaa; font-size:13px;">Lower = slower classic crawl. Recommended: 0.20 – 0.80</p>
+
+        <h3 style="margin-top:25px;">Phosphor Glow Strength</h3>
+        <input type="number" id="phosphorPersistence" step="0.01" min="0.05" max="0.40" style="width:150px;">
+        <button onclick="savePhosphorPersistence()">Save Glow Strength</button>
+        <p style="color:#aaa; font-size:13px;">Lower = longer glowing trail on static. Recommended: 0.10 – 0.25</p>
     </div>
 
     <div id="statusMessage"></div>
@@ -399,6 +406,13 @@ ADMIN_HTML = """
             showStatus("Scroll speed saved!", true);
         }
 
+        async function savePhosphorPersistence() {
+            const value = parseFloat(document.getElementById('phosphorPersistence').value);
+            scheduleData.phosphor_persistence = value;
+            await saveSchedule();
+            showStatus("Phosphor glow saved!", true);
+        }
+
         async function saveSchedule() {
             const res = await fetch('/api/schedule?password=' + encodeURIComponent('MuffinBennett!987'), {
                 method: 'POST',
@@ -421,6 +435,7 @@ ADMIN_HTML = """
         async function initAdmin() {
             await loadSchedule();
             document.getElementById('scrollSpeed').value = scheduleData.guide_scroll_speed || 0.36;
+            document.getElementById('phosphorPersistence').value = scheduleData.phosphor_persistence || 0.14;
             loadChannels();
         }
 
