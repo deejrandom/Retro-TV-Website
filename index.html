@@ -479,34 +479,44 @@
             return true;
         }
 
-        function drawStatic() {
-            if (!staticCtx || !staticCanvas) return;
+function drawStatic() {
+    if (!staticCtx || !staticCanvas) return;
 
-            const w = staticCanvas.width;
-            const h = staticCanvas.height;
+    const w = staticCanvas.width;
+    const h = staticCanvas.height;
 
-            const imageData = staticCtx.createImageData(w, h);
-            const data = imageData.data;
+    // === PHOSPHOR PERSISTENCE + ROLL (Stable Version) ===
+    const phosphorDecay = 0.14;
 
-            for (let i = 0; i < data.length; i += 4) {
-                const noise = Math.random() * 255;
+    // 1. Fade the previous frame slightly (persistence glow)
+    staticCtx.fillStyle = `rgba(0, 0, 0, ${phosphorDecay})`;
+    staticCtx.fillRect(0, 0, w, h);
 
-                data[i]     = noise * 0.7;
-                data[i + 1] = noise * 0.9;
-                data[i + 2] = noise;
-                data[i + 3] = 255 * staticIntensity;
-            }
+    // 2. Draw fresh noise on top
+    const imageData = staticCtx.createImageData(w, h);
+    const data = imageData.data;
 
-            staticCtx.putImageData(imageData, 0, 0);
+    for (let i = 0; i < data.length; i += 4) {
+        const noise = Math.random() * 255;
 
-            rollOffset = (rollOffset + 1.1) % h;
-            staticCtx.save();
-            staticCtx.translate(0, rollOffset);
-            staticCtx.drawImage(staticCanvas, 0, -h);
-            staticCtx.restore();
+        data[i]     = noise * 0.65;
+        data[i + 1] = noise * 0.85;
+        data[i + 2] = noise;
+        data[i + 3] = 255 * staticIntensity;
+    }
 
-            staticAnimationFrame = requestAnimationFrame(drawStatic);
-        }
+    staticCtx.putImageData(imageData, 0, 0);
+
+    // 3. Apply horizontal roll (fixed order)
+    rollOffset = (rollOffset + 1.1) % h;
+
+    staticCtx.save();
+    staticCtx.translate(0, rollOffset);
+    staticCtx.drawImage(staticCanvas, 0, -h);
+    staticCtx.restore();
+
+    staticAnimationFrame = requestAnimationFrame(drawStatic);
+}
 
         function startStaticEffect() {
             if (!staticCanvas) {
