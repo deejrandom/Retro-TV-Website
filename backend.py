@@ -24,7 +24,7 @@ def load_user(user_id):
     return User(user_id)
 
 # =====================
-# DEFAULT SCHEDULE
+# DEFAULT SCHEDULE (only used if file is missing or empty)
 # =====================
 DEFAULT_SCHEDULE = {
     "guide_scroll_speed": 0.36,
@@ -65,12 +65,17 @@ def load_schedule():
     if os.path.exists(SCHEDULE_FILE):
         with open(SCHEDULE_FILE, "r") as f:
             data = json.load(f)
-        if not data.get("vhf") or len(data.get("vhf", [])) == 0:
+        
+        # Only seed defaults if the file is completely empty/broken
+        if not data.get("vhf") and not data.get("uhf"):
+            print("Schedule file was empty — seeding defaults (safe mode)")
             save_schedule(DEFAULT_SCHEDULE)
             return DEFAULT_SCHEDULE
+        
         return data
-    save_schedule(DEFAULT_SCHEDULE)
-    return DEFAULT_SCHEDULE
+    else:
+        save_schedule(DEFAULT_SCHEDULE)
+        return DEFAULT_SCHEDULE
 
 def save_schedule(data):
     with open(SCHEDULE_FILE, "w") as f:
