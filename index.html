@@ -187,76 +187,6 @@
             border: none;
         }
 
-
-
-function initStaticCanvas() {
-    staticCanvas = document.getElementById('staticCanvas');
-    if (!staticCanvas) return;
-
-    staticCtx = staticCanvas.getContext('2d', { alpha: true });
-
-    function resizeCanvas() {
-        const screen = document.querySelector('.screen');
-        if (screen && staticCanvas) {
-            staticCanvas.width = screen.clientWidth;
-            staticCanvas.height = screen.clientHeight;
-        }
-    }
-
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-}
-
-function drawStatic() {
-    if (!staticCtx || !staticCanvas) return;
-
-    const w = staticCanvas.width;
-    const h = staticCanvas.height;
-
-    const imageData = staticCtx.createImageData(w, h);
-    const data = imageData.data;
-
-    for (let i = 0; i < data.length; i += 4) {
-        const noise = Math.random() * 255;
-
-        // Slight cyan/blue tint
-        data[i]     = noise * 0.75;   // Red
-        data[i + 1] = noise * 0.95;   // Green
-        data[i + 2] = noise;          // Blue (stronger for cyan tint)
-        data[i + 3] = 255 * staticIntensity;
-    }
-
-    staticCtx.putImageData(imageData, 0, 0);
-
-    // Medium horizontal roll
-    rollOffset = (rollOffset + 1.2) % h;
-    staticCtx.save();
-    staticCtx.translate(0, rollOffset);
-    staticCtx.drawImage(staticCanvas, 0, -h);
-    staticCtx.restore();
-
-    staticAnimationFrame = requestAnimationFrame(drawStatic);
-}
-
-function startStaticEffect() {
-    if (!staticCanvas) initStaticCanvas();
-    if (!staticCanvas) return;
-
-    staticCanvas.style.display = 'block';
-    if (!staticAnimationFrame) {
-        drawStatic();
-    }
-}
-
-function stopStaticEffect() {
-    if (staticAnimationFrame) {
-        cancelAnimationFrame(staticAnimationFrame);
-        staticAnimationFrame = null;
-    }
-    if (staticCanvas) {
-        staticCanvas.style.display = 'none';
-    }
-}
         .static {
             position: absolute;
             inset: 0;
@@ -459,16 +389,16 @@ function stopStaticEffect() {
             text-align: center;
         }
 
-    #staticCanvas {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    z-index: 5;
-    image-rendering: pixelated;
-    display: none;
-    pointer-events: none;
-}
+        #staticCanvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 5;
+            image-rendering: pixelated;
+            display: none;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -476,7 +406,7 @@ function stopStaticEffect() {
     <div class="screen">
         <div class="content"></div>
 
-        <!-- New Canvas Static (replaces old .static div) -->
+        <!-- New Canvas Static -->
         <canvas id="staticCanvas"></canvas>
 
         <div class="no-signal-text" id="noSignalText">NO SIGNAL<br><span style="font-size:12px;">CHANNEL OFF AIR</span></div>
@@ -517,89 +447,88 @@ function stopStaticEffect() {
 
         let currentGalleryImages = [];
         let currentLightboxIndex = 0;
-// =====================
-// CANVAS STATIC + HORIZONTAL ROLL
-// =====================
-let staticCanvas = null;
-let staticCtx = null;
-let staticAnimationFrame = null;
-let rollOffset = 0;
-let staticIntensity = 0.5; // Medium intensity
 
-function initStaticCanvas() {
-    staticCanvas = document.getElementById('staticCanvas');
-    if (!staticCanvas) {
-        console.error("staticCanvas element not found!");
-        return false;
-    }
+        // =====================
+        // CANVAS STATIC + HORIZONTAL ROLL
+        // =====================
+        let staticCanvas = null;
+        let staticCtx = null;
+        let staticAnimationFrame = null;
+        let rollOffset = 0;
+        let staticIntensity = 0.5;
 
-    staticCtx = staticCanvas.getContext('2d', { alpha: true });
+        function initStaticCanvas() {
+            staticCanvas = document.getElementById('staticCanvas');
+            if (!staticCanvas) {
+                console.error("staticCanvas element not found!");
+                return false;
+            }
 
-    function resizeCanvas() {
-        const screen = document.querySelector('.screen');
-        if (screen && staticCanvas) {
-            staticCanvas.width = screen.clientWidth;
-            staticCanvas.height = screen.clientHeight;
+            staticCtx = staticCanvas.getContext('2d', { alpha: true });
+
+            function resizeCanvas() {
+                const screen = document.querySelector('.screen');
+                if (screen && staticCanvas) {
+                    staticCanvas.width = screen.clientWidth;
+                    staticCanvas.height = screen.clientHeight;
+                }
+            }
+
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+            return true;
         }
-    }
 
-    resizeCanvas();
-    window.addEventListener('resize', resizeCanvas);
-    return true;
-}
+        function drawStatic() {
+            if (!staticCtx || !staticCanvas) return;
 
-function drawStatic() {
-    if (!staticCtx || !staticCanvas) return;
+            const w = staticCanvas.width;
+            const h = staticCanvas.height;
 
-    const w = staticCanvas.width;
-    const h = staticCanvas.height;
+            const imageData = staticCtx.createImageData(w, h);
+            const data = imageData.data;
 
-    const imageData = staticCtx.createImageData(w, h);
-    const data = imageData.data;
+            for (let i = 0; i < data.length; i += 4) {
+                const noise = Math.random() * 255;
 
-    for (let i = 0; i < data.length; i += 4) {
-        const noise = Math.random() * 255;
+                data[i]     = noise * 0.7;
+                data[i + 1] = noise * 0.9;
+                data[i + 2] = noise;
+                data[i + 3] = 255 * staticIntensity;
+            }
 
-        // Slight cyan/blue tint
-        data[i]     = noise * 0.7;
-        data[i + 1] = noise * 0.9;
-        data[i + 2] = noise;
-        data[i + 3] = 255 * staticIntensity;
-    }
+            staticCtx.putImageData(imageData, 0, 0);
 
-    staticCtx.putImageData(imageData, 0, 0);
+            rollOffset = (rollOffset + 1.1) % h;
+            staticCtx.save();
+            staticCtx.translate(0, rollOffset);
+            staticCtx.drawImage(staticCanvas, 0, -h);
+            staticCtx.restore();
 
-    // Medium horizontal roll
-    rollOffset = (rollOffset + 1.1) % h;
-    staticCtx.save();
-    staticCtx.translate(0, rollOffset);
-    staticCtx.drawImage(staticCanvas, 0, -h);
-    staticCtx.restore();
+            staticAnimationFrame = requestAnimationFrame(drawStatic);
+        }
 
-    staticAnimationFrame = requestAnimationFrame(drawStatic);
-}
+        function startStaticEffect() {
+            if (!staticCanvas) {
+                if (!initStaticCanvas()) return;
+            }
 
-function startStaticEffect() {
-    if (!staticCanvas) {
-        if (!initStaticCanvas()) return;
-    }
+            staticCanvas.style.display = 'block';
 
-    staticCanvas.style.display = 'block';
+            if (!staticAnimationFrame) {
+                drawStatic();
+            }
+        }
 
-    if (!staticAnimationFrame) {
-        drawStatic();
-    }
-}
-
-function stopStaticEffect() {
-    if (staticAnimationFrame) {
-        cancelAnimationFrame(staticAnimationFrame);
-        staticAnimationFrame = null;
-    }
-    if (staticCanvas) {
-        staticCanvas.style.display = 'none';
-    }
-}
+        function stopStaticEffect() {
+            if (staticAnimationFrame) {
+                cancelAnimationFrame(staticAnimationFrame);
+                staticAnimationFrame = null;
+            }
+            if (staticCanvas) {
+                staticCanvas.style.display = 'none';
+            }
+        }
 
         function formatText(text) {
             if (!text) return '';
@@ -683,23 +612,27 @@ function stopStaticEffect() {
                     div.classList.add('empty-channel');
                     contentHTML = `<p>${ch.schedule || ''}</p>`;
                 } 
-else if (ch.presentation === 'linkcards') {
-    contentHTML = `<div class="linkcards-grid">`;
+                else if (ch.presentation === 'linkcards') {
+                    contentHTML = `<div class="linkcards-grid">`;
 
-    // Reverse the array so newest appears first (top-left)
-    const reversedMedia = [...ch.media].reverse();
+                    if (ch.media && ch.media.length > 0) {
+                        const sortedMedia = [...ch.media].reverse();
 
-    reversedMedia.forEach(m => {
-        const link = m.link || '#';
-        contentHTML += `
-            <a href="${link}" target="_blank" class="link-card">
-                ${m.url ? `<img src="${m.url}" alt="">` : ''}
-                <div class="link-card-title">${m.title || ''}</div>
-            </a>
-        `;
-    });
-    contentHTML += `</div>`;
-}
+                        sortedMedia.forEach(m => {
+                            const link = m.link || '#';
+                            contentHTML += `
+                                <a href="${link}" target="_blank" class="link-card">
+                                    ${m.url ? `<img src="${m.url}" alt="">` : ''}
+                                    <div class="link-card-title">${m.title || ''}</div>
+                                </a>
+                            `;
+                        });
+                    } else {
+                        contentHTML = `<p style="color:#888;">No linkcards yet.</p>`;
+                    }
+
+                    contentHTML += `</div>`;
+                }
                 else if (ch.presentation === 'gallery') {
                     const images = ch.media.filter(m => m.type === 'image');
 
@@ -815,56 +748,55 @@ else if (ch.presentation === 'linkcards') {
             startGuideScroll(guide);
         }
 
-function updateDisplay() {
-    stopGuideScroll();
-    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+        function updateDisplay() {
+            stopGuideScroll();
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
 
-    const screen = document.querySelector('.screen');
-    const tx = document.getElementById('noSignalText');
+            const screen = document.querySelector('.screen');
+            const tx = document.getElementById('noSignalText');
 
-    let isEmptyChannel = false;
+            let isEmptyChannel = false;
 
-    if (currentMode === 'vhf') {
-        if (vhfIndex === 0) {
-            const guide = document.getElementById('vhfguide');
-            if (guide) {
-                guide.classList.add('active');
-                startGuideScroll(guide);
+            if (currentMode === 'vhf') {
+                if (vhfIndex === 0) {
+                    const guide = document.getElementById('vhfguide');
+                    if (guide) {
+                        guide.classList.add('active');
+                        startGuideScroll(guide);
+                    }
+                } else {
+                    const ch = scheduleData.vhf[vhfIndex - 1];
+                    if (ch && document.getElementById(ch.id)) {
+                        document.getElementById(ch.id).classList.add('active');
+                        isEmptyChannel = !ch.media || ch.media.length === 0;
+                    }
+                }
+            } else {
+                if (uhfIndex === 0) {
+                    const guide = document.getElementById('uhfguide');
+                    if (guide) {
+                        guide.classList.add('active');
+                        startGuideScroll(guide);
+                    }
+                } else {
+                    const ch = scheduleData.uhf[uhfIndex - 1];
+                    if (ch && document.getElementById(ch.id)) {
+                        document.getElementById(ch.id).classList.add('active');
+                        isEmptyChannel = !ch.media || ch.media.length === 0;
+                    }
+                }
             }
-        } else {
-            const ch = scheduleData.vhf[vhfIndex - 1];
-            if (ch && document.getElementById(ch.id)) {
-                document.getElementById(ch.id).classList.add('active');
-                isEmptyChannel = !ch.media || ch.media.length === 0;
+
+            if (isEmptyChannel) {
+                startStaticEffect();
+                if (tx) tx.style.display = 'block';
+                if (screen) screen.classList.add('no-signal-active');
+            } else {
+                stopStaticEffect();
+                if (tx) tx.style.display = 'none';
+                if (screen) screen.classList.remove('no-signal-active');
             }
         }
-    } else {
-        if (uhfIndex === 0) {
-            const guide = document.getElementById('uhfguide');
-            if (guide) {
-                guide.classList.add('active');
-                startGuideScroll(guide);
-            }
-        } else {
-            const ch = scheduleData.uhf[uhfIndex - 1];
-            if (ch && document.getElementById(ch.id)) {
-                document.getElementById(ch.id).classList.add('active');
-                isEmptyChannel = !ch.media || ch.media.length === 0;
-            }
-        }
-    }
-
-    // === NEW CANVAS STATIC + HORIZONTAL ROLL ===
-    if (isEmptyChannel) {
-        startStaticEffect();           // Start canvas static + roll
-        if (tx) tx.style.display = 'block';
-        if (screen) screen.classList.add('no-signal-active');
-    } else {
-        stopStaticEffect();            // Stop canvas static + roll
-        if (tx) tx.style.display = 'none';
-        if (screen) screen.classList.remove('no-signal-active');
-    }
-}
 
         function jumpToVHF(index) {
             stopGuideScroll();
@@ -880,43 +812,41 @@ function updateDisplay() {
             updateDisplay();
         }
 
-function nextVHF() {
-    stopGuideScroll();
+        function nextVHF() {
+            stopGuideScroll();
 
-    if (lastMode !== 'vhf') {
-        vhfIndex = 0;
-    } else {
-        vhfIndex = (vhfIndex + 1) % (scheduleData.vhf.length + 1);
-    }
+            if (lastMode !== 'vhf') {
+                vhfIndex = 0;
+            } else {
+                vhfIndex = (vhfIndex + 1) % (scheduleData.vhf.length + 1);
+            }
 
-    currentMode = 'vhf';
-    lastMode = 'vhf';
+            currentMode = 'vhf';
+            lastMode = 'vhf';
 
-    // Just keep adding rotation instead of resetting it
-    vRot += 45;
-    document.getElementById('vhfKnob').style.transform = `rotate(${vRot}deg)`;
+            vRot += 45;
+            document.getElementById('vhfKnob').style.transform = `rotate(${vRot}deg)`;
 
-    updateDisplay();
-}
+            updateDisplay();
+        }
 
-function nextUHF() {
-    stopGuideScroll();
+        function nextUHF() {
+            stopGuideScroll();
 
-    if (lastMode !== 'uhf') {
-        uhfIndex = 0;
-    } else {
-        uhfIndex = (uhfIndex + 1) % (scheduleData.uhf.length + 1);
-    }
+            if (lastMode !== 'uhf') {
+                uhfIndex = 0;
+            } else {
+                uhfIndex = (uhfIndex + 1) % (scheduleData.uhf.length + 1);
+            }
 
-    currentMode = 'uhf';
-    lastMode = 'uhf';
+            currentMode = 'uhf';
+            lastMode = 'uhf';
 
-    // Just keep adding rotation instead of resetting it
-    uRot += 45;
-    document.getElementById('uhfKnob').style.transform = `rotate(${uRot}deg)`;
+            uRot += 45;
+            document.getElementById('uhfKnob').style.transform = `rotate(${uRot}deg)`;
 
-    updateDisplay();
-}
+            updateDisplay();
+        }
 
         function startGuideScroll(guideElement) {
             stopGuideScroll();

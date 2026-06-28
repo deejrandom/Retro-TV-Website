@@ -186,28 +186,33 @@ ADMIN_HTML = """
         <h3 style="margin-top:30px;">Media Items</h3>
         <div id="mediaList"></div>
         
-        <h3 style="margin-top:30px;">Add New Media</h3>
-        <label>Media Type</label>
-        <select id="newMediaType" onchange="toggleMediaFields()">
-            <option value="image">Image</option>
-            <option value="youtube">YouTube Video</option>
-            <option value="text">Text / Writing</option>
-            <option value="linkcard">Link Card</option>
-        </select>
-        
-        <div id="mediaFields">
-            <label>Title</label>
-            <input type="text" id="newMediaTitle">
-            
-            <label id="urlLabel">URL / Content</label>
-            <input type="text" id="newMediaUrl">
-            
-            <div id="galleryFields" style="display:none;">
-                <label>Gallery Group Name</label>
-                <input type="text" id="newGalleryGroup" placeholder="e.g. Final Fantasy">
-                <label><input type="checkbox" id="isCover"> Make this the cover image</label>
-            </div>
-        </div>
+  <h3 style="margin-top:30px;">Add New Media</h3>
+<label>Media Type</label>
+<select id="newMediaType" onchange="toggleMediaFields()">
+    <option value="image">Image</option>
+    <option value="youtube">YouTube Video</option>
+    <option value="text">Text / Writing</option>
+    <option value="linkcard">Link Card</option>
+</select>
+
+<div id="mediaFields">
+    <label>Title</label>
+    <input type="text" id="newMediaTitle">
+    
+    <label id="urlLabel">Image URL</label>
+    <input type="text" id="newMediaUrl">
+    
+    <div id="galleryFields" style="display:none;">
+        <label>Gallery Group Name</label>
+        <input type="text" id="newGalleryGroup" placeholder="e.g. Final Fantasy">
+        <label><input type="checkbox" id="isCover"> Make this the cover image</label>
+    </div>
+    
+    <div id="destinationLinkField" style="display:none;">
+        <label>Destination Link</label>
+        <input type="text" id="newDestinationLink" placeholder="https://...">
+    </div>
+</div>
         
         <button onclick="addNewMedia()" style="margin-top:10px;">+ Add Media</button>
     </div>
