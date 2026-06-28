@@ -101,7 +101,7 @@ LOGIN_HTML = """
 """
 
 # =====================
-# FULL ADMIN PAGE (WITH ADD/DELETE CHANNEL)
+# FULL ADMIN PAGE
 # =====================
 ADMIN_HTML = """
 <!DOCTYPE html>
@@ -180,39 +180,38 @@ ADMIN_HTML = """
         </select>
         
         <button onclick="saveChannelChanges()">Save Channel Changes</button>
-        
         <button onclick="deleteCurrentChannel()" class="danger-btn" style="margin-top: 20px;">Delete This Channel</button>
 
         <h3 style="margin-top:30px;">Media Items</h3>
         <div id="mediaList"></div>
         
-  <h3 style="margin-top:30px;">Add New Media</h3>
-<label>Media Type</label>
-<select id="newMediaType" onchange="toggleMediaFields()">
-    <option value="image">Image</option>
-    <option value="youtube">YouTube Video</option>
-    <option value="text">Text / Writing</option>
-    <option value="linkcard">Link Card</option>
-</select>
-
-<div id="mediaFields">
-    <label>Title</label>
-    <input type="text" id="newMediaTitle">
-    
-    <label id="urlLabel">Image URL</label>
-    <input type="text" id="newMediaUrl">
-    
-    <div id="galleryFields" style="display:none;">
-        <label>Gallery Group Name</label>
-        <input type="text" id="newGalleryGroup" placeholder="e.g. Final Fantasy">
-        <label><input type="checkbox" id="isCover"> Make this the cover image</label>
-    </div>
-    
-    <div id="destinationLinkField" style="display:none;">
-        <label>Destination Link</label>
-        <input type="text" id="newDestinationLink" placeholder="https://...">
-    </div>
-</div>
+        <h3 style="margin-top:30px;">Add New Media</h3>
+        <label>Media Type</label>
+        <select id="newMediaType" onchange="toggleMediaFields()">
+            <option value="image">Image</option>
+            <option value="youtube">YouTube Video</option>
+            <option value="text">Text / Writing</option>
+            <option value="linkcard">Link Card</option>
+        </select>
+        
+        <div id="mediaFields">
+            <label>Title</label>
+            <input type="text" id="newMediaTitle">
+            
+            <label id="urlLabel">Image URL</label>
+            <input type="text" id="newMediaUrl">
+            
+            <div id="galleryFields" style="display:none;">
+                <label>Gallery Group Name</label>
+                <input type="text" id="newGalleryGroup" placeholder="e.g. Final Fantasy">
+                <label><input type="checkbox" id="isCover"> Make this the cover image</label>
+            </div>
+            
+            <div id="destinationLinkField" style="display:none;">
+                <label>Destination Link</label>
+                <input type="text" id="newDestinationLink" placeholder="https://...">
+            </div>
+        </div>
         
         <button onclick="addNewMedia()" style="margin-top:10px;">+ Add Media</button>
     </div>
@@ -296,51 +295,11 @@ ADMIN_HTML = """
 
         function toggleMediaFields() {
             const type = document.getElementById('newMediaType').value;
-            document.getElementById('galleryFields').style.display = (type === 'image') ? 'block' : 'none';
-        }
+            const galleryFields = document.getElementById('galleryFields');
+            const destinationField = document.getElementById('destinationLinkField');
 
-        async function addNewChannel() {
-            const band = document.getElementById('newBand').value;
-            const name = document.getElementById('newChannelName').value.trim();
-            const schedule = document.getElementById('newChannelSchedule').value.trim();
-
-            if (!name) {
-                alert("Channel name is required.");
-                return;
-            }
-
-            const newChannel = {
-                id: name.toLowerCase().replace(/\s+/g, '-'),
-                name: name,
-                schedule: schedule || "New channel",
-                presentation: "single",
-                media: []
-            };
-
-            if (!scheduleData[band]) scheduleData[band] = [];
-            scheduleData[band].push(newChannel);
-
-            await saveSchedule();
-            showStatus("Channel added successfully!", true);
-            
-            // Refresh dropdown
-            document.getElementById('bandSelect').value = band;
-            loadChannels();
-            
-            // Clear form
-            document.getElementById('newChannelName').value = '';
-            document.getElementById('newChannelSchedule').value = '';
-        }
-
-        async function deleteCurrentChannel() {
-            if (!confirm("Are you sure you want to delete this channel?")) return;
-
-            scheduleData[currentBand].splice(currentIndex, 1);
-            await saveSchedule();
-            showStatus("Channel deleted.", true);
-            
-            document.getElementById('channelEditor').style.display = 'none';
-            loadChannels();
+            if (galleryFields) galleryFields.style.display = (type === 'image') ? 'block' : 'none';
+            if (destinationField) destinationField.style.display = (type === 'linkcard') ? 'block' : 'none';
         }
 
         async function addNewMedia() {
@@ -349,13 +308,18 @@ ADMIN_HTML = """
             const url = document.getElementById('newMediaUrl').value.trim();
             const group = document.getElementById('newGalleryGroup').value.trim();
             const isCover = document.getElementById('isCover').checked;
+            const destinationLink = document.getElementById('newDestinationLink')?.value.trim();
 
-            if (!title || !url) {
-                alert("Title and URL are required.");
+            if (!title) {
+                alert("Title is required.");
                 return;
             }
 
-            const newMedia = { title, type, url };
+            const newMedia = { title, type };
+
+            if (url) newMedia.url = url;
+            if (type === 'linkcard' && destinationLink) newMedia.link = destinationLink;
+
             if (type === 'image' && group) {
                 newMedia.gallery_group = group;
                 if (isCover) newMedia.is_group_cover = true;
@@ -364,15 +328,17 @@ ADMIN_HTML = """
             if (!scheduleData[currentBand][currentIndex].media) {
                 scheduleData[currentBand][currentIndex].media = [];
             }
+
             scheduleData[currentBand][currentIndex].media.push(newMedia);
 
             await saveSchedule();
             renderMediaList();
-            
+
             document.getElementById('newMediaTitle').value = '';
             document.getElementById('newMediaUrl').value = '';
-            document.getElementById('newGalleryGroup').value = '';
-            document.getElementById('isCover').checked = false;
+            if (document.getElementById('newGalleryGroup')) document.getElementById('newGalleryGroup').value = '';
+            if (document.getElementById('isCover')) document.getElementById('isCover').checked = false;
+            if (document.getElementById('newDestinationLink')) document.getElementById('newDestinationLink').value = '';
         }
 
         async function deleteMedia(mediaIndex) {
@@ -384,15 +350,31 @@ ADMIN_HTML = """
 
         function editMedia(mediaIndex) {
             const m = scheduleData[currentBand][currentIndex].media[mediaIndex];
-            const newTitle = prompt("New title:", m.title || '');
+
+            const newTitle = prompt("Title:", m.title || '');
             if (newTitle !== null) m.title = newTitle;
 
-            const newUrl = prompt("New URL / content:", m.url || '');
+            const newUrl = prompt("Image URL:", m.url || '');
             if (newUrl !== null) m.url = newUrl;
+
+            if (m.type === 'linkcard' || !m.type) {
+                const newLink = prompt("Destination Link:", m.link || '');
+                if (newLink !== null) m.link = newLink;
+            }
 
             if (m.type === 'image') {
                 const newGroup = prompt("Gallery Group:", m.gallery_group || '');
                 if (newGroup !== null) m.gallery_group = newGroup;
+
+                const makeCover = confirm("Make this the cover image for the group?");
+                if (makeCover) {
+                    scheduleData[currentBand][currentIndex].media.forEach(item => {
+                        if (item.gallery_group === m.gallery_group) {
+                            item.is_group_cover = false;
+                        }
+                    });
+                    m.is_group_cover = true;
+                }
             }
 
             saveSchedule();
