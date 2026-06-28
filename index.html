@@ -683,19 +683,23 @@ function stopStaticEffect() {
                     div.classList.add('empty-channel');
                     contentHTML = `<p>${ch.schedule || ''}</p>`;
                 } 
-                else if (ch.presentation === 'linkcards') {
-                    contentHTML = `<div class="linkcards-grid">`;
-                    ch.media.forEach(m => {
-                        const link = m.link || '#';
-                        contentHTML += `
-                            <a href="${link}" target="_blank" class="link-card">
-                                ${m.url ? `<img src="${m.url}" alt="">` : ''}
-                                <div class="link-card-title">${m.title || ''}</div>
-                            </a>
-                        `;
-                    });
-                    contentHTML += `</div>`;
-                } 
+else if (ch.presentation === 'linkcards') {
+    contentHTML = `<div class="linkcards-grid">`;
+
+    // Reverse the array so newest appears first (top-left)
+    const reversedMedia = [...ch.media].reverse();
+
+    reversedMedia.forEach(m => {
+        const link = m.link || '#';
+        contentHTML += `
+            <a href="${link}" target="_blank" class="link-card">
+                ${m.url ? `<img src="${m.url}" alt="">` : ''}
+                <div class="link-card-title">${m.title || ''}</div>
+            </a>
+        `;
+    });
+    contentHTML += `</div>`;
+}
                 else if (ch.presentation === 'gallery') {
                     const images = ch.media.filter(m => m.type === 'image');
 
