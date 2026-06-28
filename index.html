@@ -485,8 +485,8 @@ function drawStatic() {
     const w = staticCanvas.width;
     const h = staticCanvas.height;
 
-    // === PHOSPHOR PERSISTENCE + ROLL (Stable Version) ===
-    const phosphorDecay = 0.14;
+    // === PHOSPHOR PERSISTENCE (now controllable) ===
+    const phosphorDecay = scheduleData.phosphor_persistence || 0.14;
 
     // 1. Fade the previous frame slightly (persistence glow)
     staticCtx.fillStyle = `rgba(0, 0, 0, ${phosphorDecay})`;
@@ -507,7 +507,7 @@ function drawStatic() {
 
     staticCtx.putImageData(imageData, 0, 0);
 
-    // 3. Apply horizontal roll (fixed order)
+    // 3. Apply horizontal roll
     rollOffset = (rollOffset + 1.1) % h;
 
     staticCtx.save();
