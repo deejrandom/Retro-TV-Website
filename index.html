@@ -179,6 +179,15 @@
             border: 3px solid #222;
             margin-bottom: 10px;
         }
+.channel-description {
+    background-color: #0f0f1a;
+    border: 2px solid #556677;
+    padding: 12px 14px;
+    margin: 0 0 18px 0;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #aaffaa;
+}
 
         .video-container iframe {
             width: 100%;
@@ -612,11 +621,15 @@ function drawStatic() {
                 div.id = ch.id;
                 div.className = `section ${band}-section`;
 
-                const channelNumber = index + 2;
-                const channelHeader = `<h2 class="channel-title">${band.toUpperCase()} ${channelNumber} • ${ch.name}</h2>`;
-                const hasMedia = ch.media && ch.media.length > 0;
+            const channelHeader = `<h2 class="channel-title">${band.toUpperCase()} ${channelNumber} • ${ch.name}</h2>`;
+const hasMedia = ch.media && ch.media.length > 0;
 
-                let contentHTML = '';
+let contentHTML = '';
+
+// Add description box if it exists
+if (ch.description && ch.description.trim() !== '') {
+    contentHTML += `<div class="channel-description">${formatText(ch.description)}</div>`;
+}
 
                 if (!hasMedia) {
                     div.classList.add('empty-channel');
