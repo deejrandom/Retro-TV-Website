@@ -24,20 +24,21 @@ def load_user(user_id):
     return User(user_id)
 
 # =====================
-# DEFAULT SCHEDULE (only used if file is missing or empty)
+# DEFAULT SCHEDULE
 # =====================
 DEFAULT_SCHEDULE = {
     "guide_scroll_speed": 0.36,
     "phosphor_persistence": 0.14,
     "vhf": [
-        {"id": "home", "name": "HOME", "schedule": "Welcome to Warren C. Bennett's Retro Future", "presentation": "single", "media": []},
-        {"id": "writing", "name": "WRITING", "schedule": "Random Encounters", "presentation": "single", "media": []},
-        {"id": "games", "name": "GAMES", "schedule": "Retro gaming hub", "presentation": "single", "media": []},
+        {"id": "home", "name": "HOME", "schedule": "Welcome to Warren C. Bennett's Retro Future", "presentation": "single", "description": "", "media": []},
+        {"id": "writing", "name": "WRITING", "schedule": "Random Encounters", "presentation": "single", "description": "", "media": []},
+        {"id": "games", "name": "GAMES", "schedule": "Retro gaming hub", "presentation": "single", "description": "", "media": []},
         {
             "id": "pixelart",
             "name": "PIXEL ART",
             "schedule": "Pixel Art Galleries",
             "presentation": "gallery",
+            "description": "",
             "media": [
                 {"title": "Final Fantasy Logo", "type": "image", "url": "https://warrencbennett.com/Final%20Fantasy%20Images/ff-Logo-NES.webp", "gallery_group": "Final Fantasy", "is_group_cover": True},
                 {"title": "Black Mage", "type": "image", "url": "https://warrencbennett.com/Final%20Fantasy%20Images/black-mage-nes.png", "gallery_group": "Final Fantasy"},
@@ -45,19 +46,19 @@ DEFAULT_SCHEDULE = {
                 {"title": "White Mage", "type": "image", "url": "https://warrencbennett.com/Final%20Fantasy%20Images/white-mage-nes.png", "gallery_group": "Final Fantasy"}
             ]
         },
-        {"id": "films", "name": "FILMS", "schedule": "Film related content", "presentation": "single", "media": []},
-        {"id": "tv", "name": "TV", "schedule": "TV related content", "presentation": "single", "media": []},
-        {"id": "where", "name": "WHERE CAN YOU FIND ME?", "schedule": "Social links", "presentation": "single", "media": []}
+        {"id": "films", "name": "FILMS", "schedule": "Film related content", "presentation": "single", "description": "", "media": []},
+        {"id": "tv", "name": "TV", "schedule": "TV related content", "presentation": "single", "description": "", "media": []},
+        {"id": "where", "name": "WHERE CAN YOU FIND ME?", "schedule": "Social links", "presentation": "single", "description": "", "media": []}
     ],
     "uhf": [
-        {"id": "uhf1", "name": "CARTOONS", "schedule": "Public Domain Cartoons", "presentation": "single", "media": []},
-        {"id": "uhf2", "name": "CARTOONS", "schedule": "More Public Domain Cartoons", "presentation": "single", "media": []},
-        {"id": "uhf3", "name": "TV SHOWS", "schedule": "Classic Public Domain TV", "presentation": "single", "media": []},
-        {"id": "uhf4", "name": "TV SHOWS", "schedule": "More Classic TV", "presentation": "single", "media": []},
-        {"id": "uhf5", "name": "FILMS", "schedule": "Double Indemnity - All day", "presentation": "single", "media": [
+        {"id": "uhf1", "name": "CARTOONS", "schedule": "Public Domain Cartoons", "presentation": "single", "description": "", "media": []},
+        {"id": "uhf2", "name": "CARTOONS", "schedule": "More Public Domain Cartoons", "presentation": "single", "description": "", "media": []},
+        {"id": "uhf3", "name": "TV SHOWS", "schedule": "Classic Public Domain TV", "presentation": "single", "description": "", "media": []},
+        {"id": "uhf4", "name": "TV SHOWS", "schedule": "More Classic TV", "presentation": "single", "description": "", "media": []},
+        {"id": "uhf5", "name": "FILMS", "schedule": "Double Indemnity - All day", "presentation": "single", "description": "", "media": [
             {"title": "Double Indemnity (1944)", "type": "youtube", "url": "https://www.youtube.com/watch?v=wI5xaum_HlA"}
         ]},
-        {"id": "uhf6", "name": "FILMS", "schedule": "More Public Domain Films", "presentation": "single", "media": []}
+        {"id": "uhf6", "name": "FILMS", "schedule": "More Public Domain Films", "presentation": "single", "description": "", "media": []}
     ]
 }
 
@@ -65,13 +66,10 @@ def load_schedule():
     if os.path.exists(SCHEDULE_FILE):
         with open(SCHEDULE_FILE, "r") as f:
             data = json.load(f)
-        
-        # Only seed defaults if the file is completely empty/broken
         if not data.get("vhf") and not data.get("uhf"):
             print("Schedule file was empty — seeding defaults (safe mode)")
             save_schedule(DEFAULT_SCHEDULE)
             return DEFAULT_SCHEDULE
-        
         return data
     else:
         save_schedule(DEFAULT_SCHEDULE)
@@ -120,7 +118,7 @@ ADMIN_HTML = """
         body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 30px; max-width: 1100px; margin: 0 auto; }
         h1, h2, h3 { color: #ffcc00; }
         .section { background: #111; border: 3px solid #334455; padding: 20px; margin-bottom: 30px; }
-        input, select, button { background: #222; color: #fff; border: 2px solid #556677; padding: 10px; margin: 8px 0; font-family: inherit; width: 100%; box-sizing: border-box; }
+        input, select, textarea, button { background: #222; color: #fff; border: 2px solid #556677; padding: 10px; margin: 8px 0; font-family: inherit; width: 100%; box-sizing: border-box; }
         button { background: #39ff14; color: #000; cursor: pointer; font-weight: bold; width: auto; padding: 10px 20px; }
         button:hover { background: #ffcc00; }
         .media-item { background: #1a1a1a; border: 2px solid #444; padding: 15px; margin: 12px 0; }
@@ -184,6 +182,9 @@ ADMIN_HTML = """
             <option value="gallery">Gallery (grouped images)</option>
             <option value="linkcards">Link Cards</option>
         </select>
+        
+        <label>Channel Description (optional)</label>
+        <textarea id="channelDescription" rows="3" placeholder="Short text shown above the content..."></textarea>
         
         <button onclick="saveChannelChanges()">Save Channel Changes</button>
         <button onclick="deleteCurrentChannel()" class="danger-btn" style="margin-top: 20px;">Delete This Channel</button>
@@ -276,6 +277,7 @@ ADMIN_HTML = """
             document.getElementById('channelName').value = ch.name || '';
             document.getElementById('channelSchedule').value = ch.schedule || '';
             document.getElementById('presentationMode').value = ch.presentation || 'single';
+            document.getElementById('channelDescription').value = ch.description || '';
 
             renderMediaList();
             document.getElementById('channelEditor').style.display = 'block';
@@ -398,6 +400,7 @@ ADMIN_HTML = """
             ch.name = document.getElementById('channelName').value.trim();
             ch.schedule = document.getElementById('channelSchedule').value.trim();
             ch.presentation = document.getElementById('presentationMode').value;
+            ch.description = document.getElementById('channelDescription').value.trim();
 
             await saveSchedule();
             showStatus("Channel saved successfully!", true);
