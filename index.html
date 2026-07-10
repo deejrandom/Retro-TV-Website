@@ -118,12 +118,14 @@
             font-weight: bold;
         }
 
+        /* === TALLER STABLE GUIDE === */
         .guide-scroll-container {
-            height: 420px;
+            height: 580px;           /* Much taller than before */
             overflow: hidden;
             position: relative;
             border: 3px solid #334455;
             background: #0a0a1f;
+            margin-top: 10px;
         }
 
         .guide-grids-wrapper {
@@ -544,55 +546,38 @@
             }
         }
 
-        // =====================
-        // STRONGER KNOB ROTATION SYSTEM
-        // =====================
         function rotateKnob(knobId, currentRotation, amount) {
             const knob = document.getElementById(knobId);
-            
-            // Disable transition to prevent jump
             knob.style.transition = 'none';
-            
             const newRotation = currentRotation + amount;
             knob.style.transform = `rotate(${newRotation}deg)`;
-            
-            // Force browser to apply the change immediately
             void knob.offsetWidth;
-            
-            // Re-enable smooth transition
             knob.style.transition = 'transform 0.15s ease-out';
-            
             return newRotation;
         }
 
         function nextVHF() {
             stopGuideScroll();
-
             if (lastMode !== 'vhf') {
                 vhfIndex = 0;
             } else {
                 vhfIndex = (vhfIndex + 1) % (scheduleData.vhf.length + 1);
             }
-
             currentMode = 'vhf';
             lastMode = 'vhf';
-
             vhfRotation = rotateKnob('vhfKnob', vhfRotation, 45);
             updateDisplay();
         }
 
         function nextUHF() {
             stopGuideScroll();
-
             if (lastMode !== 'uhf') {
                 uhfIndex = 0;
             } else {
                 uhfIndex = (uhfIndex + 1) % (scheduleData.uhf.length + 1);
             }
-
             currentMode = 'uhf';
             lastMode = 'uhf';
-
             uhfRotation = rotateKnob('uhfKnob', uhfRotation, 45);
             updateDisplay();
         }
