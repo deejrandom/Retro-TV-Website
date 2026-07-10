@@ -11,7 +11,7 @@ CORS(app)
 app.config['SECRET_KEY'] = 'retro-tv-secret-key-2026'
 
 # =====================
-# PASSWORD (Hardcoded for now)
+# PASSWORD
 # =====================
 ADMIN_PASSWORD = "MuffinBennett!987"
 ADMIN_PASSWORD_HASH = generate_password_hash(ADMIN_PASSWORD)
@@ -47,19 +47,18 @@ LOGIN_HTML = """
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Admin Login - Retro TV</title>
+    <title>Admin Login</title>
     <style>
         body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 50px; text-align: center; }
-        h1 { color: #ffcc00; }
-        input { background: #111; color: #fff; border: 3px solid #556677; padding: 14px; font-size: 18px; width: 320px; margin: 15px 0; }
+        input { background: #111; color: #fff; border: 3px solid #556677; padding: 14px; font-size: 18px; width: 320px; }
         button { background: #39ff14; color: #000; border: none; padding: 14px 40px; font-family: 'Press Start 2P', cursive; font-size: 16px; cursor: pointer; }
         button:hover { background: #ffcc00; }
     </style>
 </head>
 <body>
-    <h1>Retro TV Admin</h1>
+    <h1 style="color:#ffcc00;">Retro TV Admin</h1>
     <form method="POST">
-        <input type="password" name="password" placeholder="Enter Password" required><br>
+        <input type="password" name="password" placeholder="Password" required><br><br>
         <button type="submit">Login</button>
     </form>
 </body>
@@ -67,7 +66,7 @@ LOGIN_HTML = """
 """
 
 # =====================
-# ADMIN PAGE (Basic but working)
+# ADMIN PAGE (Better Version)
 # =====================
 ADMIN_HTML = """
 <!DOCTYPE html>
@@ -75,12 +74,13 @@ ADMIN_HTML = """
 <head>
     <title>Admin - Retro TV</title>
     <style>
-        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 30px; max-width: 900px; margin: 0 auto; }
+        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 30px; max-width: 1100px; margin: 0 auto; }
         h1, h2 { color: #ffcc00; }
-        .section { background: #111; border: 3px solid #334455; padding: 20px; margin-bottom: 25px; }
-        pre { background: #1a1a1a; padding: 15px; overflow-x: auto; border: 2px solid #556677; }
-        button { background: #39ff14; color: #000; border: none; padding: 10px 20px; font-family: 'Press Start 2P', cursive; cursor: pointer; }
+        .section { background: #111; border: 3px solid #334455; padding: 20px; margin-bottom: 30px; }
+        input, select, button, textarea { background: #222; color: #fff; border: 2px solid #555; padding: 8px; margin: 6px 0; width: 100%; box-sizing: border-box; }
+        button { background: #39ff14; color: #000; cursor: pointer; font-weight: bold; width: auto; padding: 10px 20px; }
         button:hover { background: #ffcc00; }
+        .channel { background: #1a1a1a; border: 2px solid #556677; padding: 15px; margin-bottom: 15px; }
     </style>
 </head>
 <body>
@@ -88,23 +88,89 @@ ADMIN_HTML = """
     <p><a href="/logout" style="color:#ffcc00;">Logout</a></p>
 
     <div class="section">
-        <h2>Current Schedule Data</h2>
-        <pre id="scheduleData"></pre>
-        <button onclick="refreshData()">Refresh Data</button>
+        <h2>Add New Channel</h2>
+        <form id="addChannelForm">
+            <select name="band">
+                <option value="vhf">VHF</option>
+                <option value="uhf">UHF</option>
+            </select>
+            <input type="text" name="name" placeholder="Channel Name" required>
+            <input type="text" name="schedule" placeholder="Schedule Description">
+            <select name="presentation">
+                <option value="single">Single</option>
+                <option value="gallery">Gallery</option>
+                <option value="linkcards">Linkcards</option>
+            </select>
+            <button type="submit">Add Channel</button>
+        </form>
     </div>
 
     <div class="section">
-        <h2>Quick Actions</h2>
-        <p>You can also use the full admin tools later. For now, you can manually edit <code>schedule.json</code> on Render if needed.</p>
+        <h2>Current Channels</h2>
+        <div id="channelList"></div>
     </div>
 
     <script>
-        async function refreshData() {
+        let scheduleData = {};
+
+        async function loadData() {
             const res = await fetch('/api/schedule');
-            const data = await res.json();
-            document.getElementById('scheduleData').textContent = JSON.stringify(data, null, 2);
+            scheduleData = await res.json();
+            renderChannels();
         }
-        refreshData();
+
+        function renderChannels() {
+            const container = document.getElementById('channelList');
+            container.innerHTML = '';
+
+            ['vhf', 'uhf'].forEach(band => {
+                scheduleData[band].forEach((ch, index) => {
+                    const div = document.createElement('div');
+                    div.className = 'channel';
+                    div.innerHTML = `
+                        <strong>${band.toUpperCase()} - ${ch.name}</strong><br>
+                        Schedule: ${ch.schedule || ''}<br>
+                        Presentation: ${ch.presentation || 'single'}<br><br>
+                        <button onclick="deleteChannel('${band}', ${index})">Delete Channel</button>
+                    `;
+                    container.appendChild(div);
+                });
+            });
+        }
+
+        async function deleteChannel(band, index) {
+            if (!confirm("Delete this channel?")) return;
+            scheduleData[band].splice(index, 1);
+            await saveData();
+            loadData();
+        }
+
+        async function saveData() {
+            await fetch('/api/schedule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(scheduleData)
+            });
+        }
+
+        // Add new channel
+        document.getElementById('addChannelForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const newChannel = {
+                id: formData.get('name').toLowerCase().replace(/\s+/g, '-'),
+                name: formData.get('name'),
+                schedule: formData.get('schedule'),
+                presentation: formData.get('presentation'),
+                media: []
+            };
+            scheduleData[formData.get('band')].push(newChannel);
+            await saveData();
+            this.reset();
+            loadData();
+        });
+
+        loadData();
     </script>
 </body>
 </html>
@@ -125,7 +191,7 @@ def update_schedule():
     if not new_data:
         return jsonify({"error": "No data provided"}), 400
     save_schedule(new_data)
-    return jsonify({"message": "Schedule updated successfully"})
+    return jsonify({"message": "Saved successfully"})
 
 @app.route('/admin')
 @login_required
