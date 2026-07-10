@@ -63,7 +63,7 @@ LOGIN_HTML = """
 """
 
 # =====================
-# FULL ADMIN PAGE
+# DROPDOWN STYLE ADMIN PAGE
 # =====================
 ADMIN_HTML = """
 <!DOCTYPE html>
@@ -71,33 +71,29 @@ ADMIN_HTML = """
 <head>
     <title>Admin - Retro TV</title>
     <style>
-        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 20px; max-width: 1300px; margin: 0 auto; }
+        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 25px; max-width: 1100px; margin: 0 auto; }
         h1, h2, h3 { color: #ffcc00; }
         .section { background: #111; border: 3px solid #334455; padding: 20px; margin-bottom: 25px; }
-        input, select, button, textarea { background: #222; color: #fff; border: 2px solid #555; padding: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; font-family: inherit; }
-        button { background: #39ff14; color: #000; cursor: pointer; font-weight: bold; width: auto; padding: 10px 18px; }
+        select, input, button, textarea { background: #222; color: #fff; border: 2px solid #555; padding: 10px; margin: 8px 0; width: 100%; box-sizing: border-box; font-family: inherit; }
+        button { background: #39ff14; color: #000; cursor: pointer; font-weight: bold; width: auto; padding: 12px 24px; }
         button:hover { background: #ffcc00; }
-        .channel-card { background: #1a1a1a; border: 2px solid #556677; padding: 15px; margin-bottom: 20px; }
-        .media-item { background: #222; border: 1px solid #555; padding: 10px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center; }
-        .form-row { display: flex; gap: 10px; }
-        .form-row > * { flex: 1; }
+        .media-item { background: #1a1a1a; border: 1px solid #555; padding: 10px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center; }
+        #editForm { display: none; margin-top: 20px; }
     </style>
 </head>
 <body>
     <h1>Retro TV Admin</h1>
     <p><a href="/logout" style="color:#ffcc00;">Logout</a></p>
 
-    <!-- Add Channel -->
+    <!-- Add New Channel -->
     <div class="section">
         <h2>Add New Channel</h2>
         <form id="addChannelForm">
-            <div class="form-row">
-                <select name="band">
-                    <option value="vhf">VHF</option>
-                    <option value="uhf">UHF</option>
-                </select>
-                <input type="text" name="name" placeholder="Channel Name" required>
-            </div>
+            <select name="band">
+                <option value="vhf">VHF</option>
+                <option value="uhf">UHF</option>
+            </select>
+            <input type="text" name="name" placeholder="Channel Name" required>
             <input type="text" name="schedule" placeholder="Schedule Description">
             <select name="presentation">
                 <option value="single">Single Content</option>
@@ -108,117 +104,170 @@ ADMIN_HTML = """
         </form>
     </div>
 
-    <!-- Existing Channels -->
+    <!-- Edit Existing Channel -->
     <div class="section">
-        <h2>Existing Channels</h2>
-        <div id="channelList"></div>
+        <h2>Edit Channel</h2>
+        
+        <label><strong>Select Channel to Edit:</strong></label>
+        <select id="channelSelect" onchange="loadSelectedChannel()">
+            <option value="">-- Select a Channel --</option>
+        </select>
+
+        <div id="editForm">
+            <h3 id="editingTitle"></h3>
+
+            <label>Channel Name</label>
+            <input type="text" id="editName">
+
+            <label>Schedule Description</label>
+            <input type="text" id="editSchedule">
+
+            <label>Presentation Style</label>
+            <select id="editPresentation">
+                <option value="single">Single Content</option>
+                <option value="gallery">Gallery</option>
+                <option value="linkcards">Linkcards</option>
+            </select>
+
+            <br><br>
+            <button onclick="saveChannelChanges()">Save Changes</button>
+            <button onclick="deleteSelectedChannel()" style="background:#cc4444; color:white;">Delete Channel</button>
+
+            <br><br>
+            <h3>Add Media</h3>
+            <select id="mediaType">
+                <option value="image">Image</option>
+                <option value="youtube">YouTube Video</option>
+                <option value="text">Text</option>
+                <option value="linkcard">Linkcard</option>
+            </select>
+            <input type="text" id="mediaTitle" placeholder="Title">
+            <input type="text" id="mediaUrl" placeholder="URL or Content">
+            <button onclick="addMediaToChannel()">Add Media</button>
+
+            <br><br>
+            <h3>Current Media</h3>
+            <div id="mediaList"></div>
+        </div>
     </div>
 
     <script>
         let scheduleData = {};
+        let currentBand = '';
+        let currentIndex = -1;
 
         async function loadData() {
             const res = await fetch('/api/schedule');
             scheduleData = await res.json();
-            renderChannels();
+            populateChannelDropdown();
         }
 
-        function renderChannels() {
-            const container = document.getElementById('channelList');
-            container.innerHTML = '';
+        function populateChannelDropdown() {
+            const select = document.getElementById('channelSelect');
+            select.innerHTML = '<option value="">-- Select a Channel --</option>';
 
             ['vhf', 'uhf'].forEach(band => {
                 scheduleData[band].forEach((ch, index) => {
-                    const div = document.createElement('div');
-                    div.className = 'channel-card';
-
-                    let mediaHTML = '';
-                    if (ch.media && ch.media.length > 0) {
-                        mediaHTML = '<h3>Media</h3>';
-                        ch.media.forEach((m, mIndex) => {
-                            mediaHTML += `
-                                <div class="media-item">
-                                    <span>${m.title || m.type} (${m.type})</span>
-                                    <button onclick="deleteMedia('${band}', ${index}, ${mIndex})">Delete</button>
-                                </div>`;
-                        });
-                    }
-
-                    div.innerHTML = `
-                        <h3>${band.toUpperCase()} - ${ch.name}</h3>
-                        
-                        <label>Channel Name</label>
-                        <input type="text" id="name-${band}-${index}" value="${ch.name}">
-                        
-                        <label>Schedule</label>
-                        <input type="text" id="schedule-${band}-${index}" value="${ch.schedule || ''}">
-                        
-                        <label>Presentation Style</label>
-                        <select id="presentation-${band}-${index}">
-                            <option value="single" ${ch.presentation === 'single' ? 'selected' : ''}>Single</option>
-                            <option value="gallery" ${ch.presentation === 'gallery' ? 'selected' : ''}>Gallery</option>
-                            <option value="linkcards" ${ch.presentation === 'linkcards' ? 'selected' : ''}>Linkcards</option>
-                        </select>
-
-                        <br><br>
-                        <button onclick="saveChannel('${band}', ${index})">Save Changes</button>
-                        <button onclick="deleteChannel('${band}', ${index})">Delete Channel</button>
-
-                        <br><br>
-                        <h3>Add Media</h3>
-                        <select id="mediaType-${band}-${index}">
-                            <option value="image">Image</option>
-                            <option value="youtube">YouTube Video</option>
-                            <option value="text">Text</option>
-                            <option value="linkcard">Linkcard</option>
-                        </select>
-                        <input type="text" id="mediaTitle-${band}-${index}" placeholder="Title">
-                        <input type="text" id="mediaUrl-${band}-${index}" placeholder="URL or content">
-                        <button onclick="addMedia('${band}', ${index})">Add Media</button>
-
-                        ${mediaHTML}
-                    `;
-                    container.appendChild(div);
+                    const option = document.createElement('option');
+                    option.value = `${band}-${index}`;
+                    option.textContent = `${band.toUpperCase()} - ${ch.name}`;
+                    select.appendChild(option);
                 });
             });
         }
 
-        async function saveChannel(band, index) {
-            const ch = scheduleData[band][index];
-            ch.name = document.getElementById(`name-${band}-${index}`).value;
-            ch.schedule = document.getElementById(`schedule-${band}-${index}`).value;
-            ch.presentation = document.getElementById(`presentation-${band}-${index}`).value;
+        function loadSelectedChannel() {
+            const select = document.getElementById('channelSelect');
+            const value = select.value;
+            const form = document.getElementById('editForm');
 
-            await saveData();
-            alert("Channel updated!");
-            loadData();
+            if (!value) {
+                form.style.display = 'none';
+                return;
+            }
+
+            const [band, index] = value.split('-');
+            currentBand = band;
+            currentIndex = parseInt(index);
+
+            const ch = scheduleData[band][currentIndex];
+
+            document.getElementById('editingTitle').textContent = `Editing: ${ch.name}`;
+            document.getElementById('editName').value = ch.name;
+            document.getElementById('editSchedule').value = ch.schedule || '';
+            document.getElementById('editPresentation').value = ch.presentation || 'single';
+
+            renderMediaList();
+            form.style.display = 'block';
         }
 
-        async function deleteChannel(band, index) {
-            if (!confirm("Delete this channel?")) return;
-            scheduleData[band].splice(index, 1);
-            await saveData();
-            loadData();
+        function renderMediaList() {
+            const container = document.getElementById('mediaList');
+            container.innerHTML = '';
+
+            const ch = scheduleData[currentBand][currentIndex];
+            if (!ch.media || ch.media.length === 0) {
+                container.innerHTML = '<p style="color:#888;">No media yet.</p>';
+                return;
+            }
+
+            ch.media.forEach((m, mIndex) => {
+                const div = document.createElement('div');
+                div.className = 'media-item';
+                div.innerHTML = `
+                    <span>${m.title || m.type} (${m.type})</span>
+                    <button onclick="deleteMedia(${mIndex})">Delete</button>
+                `;
+                container.appendChild(div);
+            });
         }
 
-        async function addMedia(band, index) {
-            const ch = scheduleData[band][index];
+        async function saveChannelChanges() {
+            const ch = scheduleData[currentBand][currentIndex];
+            ch.name = document.getElementById('editName').value;
+            ch.schedule = document.getElementById('editSchedule').value;
+            ch.presentation = document.getElementById('editPresentation').value;
+
+            await saveData();
+            alert('Channel updated!');
+            await loadData();
+            populateChannelDropdown();
+            
+            // Re-select the channel
+            document.getElementById('channelSelect').value = `${currentBand}-${currentIndex}`;
+        }
+
+        async function deleteSelectedChannel() {
+            if (!confirm('Delete this channel?')) return;
+            scheduleData[currentBand].splice(currentIndex, 1);
+            await saveData();
+            document.getElementById('editForm').style.display = 'none';
+            await loadData();
+            populateChannelDropdown();
+        }
+
+        async function addMediaToChannel() {
+            const ch = scheduleData[currentBand][currentIndex];
             if (!ch.media) ch.media = [];
 
-            const type = document.getElementById(`mediaType-${band}-${index}`).value;
-            const title = document.getElementById(`mediaTitle-${band}-${index}`).value;
-            const url = document.getElementById(`mediaUrl-${band}-${index}`).value;
+            const type = document.getElementById('mediaType').value;
+            const title = document.getElementById('mediaTitle').value;
+            const url = document.getElementById('mediaUrl').value;
 
             ch.media.push({ type, title, url });
             await saveData();
-            loadData();
+            renderMediaList();
+            
+            // Clear inputs
+            document.getElementById('mediaTitle').value = '';
+            document.getElementById('mediaUrl').value = '';
         }
 
-        async function deleteMedia(band, chIndex, mediaIndex) {
-            if (!confirm("Delete this media item?")) return;
-            scheduleData[band][chIndex].media.splice(mediaIndex, 1);
+        async function deleteMedia(mediaIndex) {
+            if (!confirm('Delete this media item?')) return;
+            scheduleData[currentBand][currentIndex].media.splice(mediaIndex, 1);
             await saveData();
-            loadData();
+            renderMediaList();
         }
 
         async function saveData() {
@@ -243,7 +292,8 @@ ADMIN_HTML = """
             scheduleData[form.get('band')].push(newChannel);
             await saveData();
             this.reset();
-            loadData();
+            await loadData();
+            populateChannelDropdown();
         });
 
         loadData();
