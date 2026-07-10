@@ -41,7 +41,7 @@ def save_schedule(data):
         json.dump(data, f, indent=2)
 
 # =====================
-# LOGIN PAGE
+# LOGIN
 # =====================
 LOGIN_HTML = """
 <!DOCTYPE html>
@@ -49,7 +49,7 @@ LOGIN_HTML = """
 <head>
     <title>Admin Login</title>
     <style>
-        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 50px; text-align: center; }
+        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 60px; text-align: center; }
         input { background: #111; color: #fff; border: 3px solid #556677; padding: 14px; font-size: 18px; width: 320px; }
         button { background: #39ff14; color: #000; border: none; padding: 14px 40px; font-family: 'Press Start 2P', cursive; font-size: 16px; cursor: pointer; }
         button:hover { background: #ffcc00; }
@@ -66,7 +66,7 @@ LOGIN_HTML = """
 """
 
 # =====================
-# ADMIN PAGE (Better Version)
+# ADMIN PAGE (Good Version)
 # =====================
 ADMIN_HTML = """
 <!DOCTYPE html>
@@ -74,19 +74,21 @@ ADMIN_HTML = """
 <head>
     <title>Admin - Retro TV</title>
     <style>
-        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 30px; max-width: 1100px; margin: 0 auto; }
+        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 25px; max-width: 1200px; margin: 0 auto; }
         h1, h2 { color: #ffcc00; }
-        .section { background: #111; border: 3px solid #334455; padding: 20px; margin-bottom: 30px; }
-        input, select, button, textarea { background: #222; color: #fff; border: 2px solid #555; padding: 8px; margin: 6px 0; width: 100%; box-sizing: border-box; }
-        button { background: #39ff14; color: #000; cursor: pointer; font-weight: bold; width: auto; padding: 10px 20px; }
+        .section { background: #111; border: 3px solid #334455; padding: 20px; margin-bottom: 25px; }
+        input, select, button, textarea { background: #222; color: #fff; border: 2px solid #555; padding: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        button { background: #39ff14; color: #000; cursor: pointer; font-weight: bold; width: auto; padding: 10px 18px; }
         button:hover { background: #ffcc00; }
-        .channel { background: #1a1a1a; border: 2px solid #556677; padding: 15px; margin-bottom: 15px; }
+        .channel-card { background: #1a1a1a; border: 2px solid #556677; padding: 15px; margin-bottom: 15px; }
+        .media-item { background: #222; border: 1px solid #555; padding: 10px; margin: 8px 0; }
     </style>
 </head>
 <body>
     <h1>Retro TV Admin</h1>
     <p><a href="/logout" style="color:#ffcc00;">Logout</a></p>
 
+    <!-- Add Channel -->
     <div class="section">
         <h2>Add New Channel</h2>
         <form id="addChannelForm">
@@ -97,7 +99,7 @@ ADMIN_HTML = """
             <input type="text" name="name" placeholder="Channel Name" required>
             <input type="text" name="schedule" placeholder="Schedule Description">
             <select name="presentation">
-                <option value="single">Single</option>
+                <option value="single">Single Content</option>
                 <option value="gallery">Gallery</option>
                 <option value="linkcards">Linkcards</option>
             </select>
@@ -105,8 +107,9 @@ ADMIN_HTML = """
         </form>
     </div>
 
+    <!-- Channel List -->
     <div class="section">
-        <h2>Current Channels</h2>
+        <h2>Manage Channels</h2>
         <div id="channelList"></div>
     </div>
 
@@ -126,11 +129,21 @@ ADMIN_HTML = """
             ['vhf', 'uhf'].forEach(band => {
                 scheduleData[band].forEach((ch, index) => {
                     const div = document.createElement('div');
-                    div.className = 'channel';
+                    div.className = 'channel-card';
+                    
+                    let mediaHTML = '';
+                    if (ch.media && ch.media.length > 0) {
+                        mediaHTML = '<strong>Media:</strong><br>';
+                        ch.media.forEach((m, mIndex) => {
+                            mediaHTML += `• ${m.title || m.type} (${m.type}) <button onclick="deleteMedia('${band}', ${index}, ${mIndex})">Delete</button><br>`;
+                        });
+                    }
+
                     div.innerHTML = `
-                        <strong>${band.toUpperCase()} - ${ch.name}</strong><br>
+                        <strong>${band.toUpperCase()} ${index + 1}:</strong> ${ch.name}<br>
                         Schedule: ${ch.schedule || ''}<br>
-                        Presentation: ${ch.presentation || 'single'}<br><br>
+                        Style: ${ch.presentation || 'single'}<br><br>
+                        ${mediaHTML}
                         <button onclick="deleteChannel('${band}', ${index})">Delete Channel</button>
                     `;
                     container.appendChild(div);
@@ -141,6 +154,13 @@ ADMIN_HTML = """
         async function deleteChannel(band, index) {
             if (!confirm("Delete this channel?")) return;
             scheduleData[band].splice(index, 1);
+            await saveData();
+            loadData();
+        }
+
+        async function deleteMedia(band, chIndex, mediaIndex) {
+            if (!confirm("Delete this media item?")) return;
+            scheduleData[band][chIndex].media.splice(mediaIndex, 1);
             await saveData();
             loadData();
         }
@@ -156,15 +176,15 @@ ADMIN_HTML = """
         // Add new channel
         document.getElementById('addChannelForm').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const formData = new FormData(this);
+            const form = new FormData(this);
             const newChannel = {
-                id: formData.get('name').toLowerCase().replace(/\s+/g, '-'),
-                name: formData.get('name'),
-                schedule: formData.get('schedule'),
-                presentation: formData.get('presentation'),
+                id: form.get('name').toLowerCase().replace(/\s+/g, '-'),
+                name: form.get('name'),
+                schedule: form.get('schedule'),
+                presentation: form.get('presentation'),
                 media: []
             };
-            scheduleData[formData.get('band')].push(newChannel);
+            scheduleData[form.get('band')].push(newChannel);
             await saveData();
             this.reset();
             loadData();
@@ -191,7 +211,7 @@ def update_schedule():
     if not new_data:
         return jsonify({"error": "No data provided"}), 400
     save_schedule(new_data)
-    return jsonify({"message": "Saved successfully"})
+    return jsonify({"message": "Saved"})
 
 @app.route('/admin')
 @login_required
