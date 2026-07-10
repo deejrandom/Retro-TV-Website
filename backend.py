@@ -31,14 +31,14 @@ def load_schedule():
     if os.path.exists(SCHEDULE_FILE):
         with open(SCHEDULE_FILE, "r") as f:
             return json.load(f)
-    return {"vhf": [], "uhf": [], "guide_scroll_speed": 0.36}
+    return {"vhf": [], "uhf": [], "guide_scroll_speed": 0.36, "crt_settings": {}}
 
 def save_schedule(data):
     with open(SCHEDULE_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
 # =====================
-# LOGIN PAGE
+# LOGIN
 # =====================
 LOGIN_HTML = """
 <!DOCTYPE html>
@@ -63,7 +63,7 @@ LOGIN_HTML = """
 """
 
 # =====================
-# DROPDOWN STYLE ADMIN PAGE
+# ADMIN PAGE - OLD FLOW + SPEED + CRT
 # =====================
 ADMIN_HTML = """
 <!DOCTYPE html>
@@ -71,21 +71,21 @@ ADMIN_HTML = """
 <head>
     <title>Admin - Retro TV</title>
     <style>
-        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 25px; max-width: 1100px; margin: 0 auto; }
+        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 20px; max-width: 1100px; margin: 0 auto; }
         h1, h2, h3 { color: #ffcc00; }
         .section { background: #111; border: 3px solid #334455; padding: 20px; margin-bottom: 25px; }
         select, input, button, textarea { background: #222; color: #fff; border: 2px solid #555; padding: 10px; margin: 8px 0; width: 100%; box-sizing: border-box; font-family: inherit; }
         button { background: #39ff14; color: #000; cursor: pointer; font-weight: bold; width: auto; padding: 12px 24px; }
         button:hover { background: #ffcc00; }
         .media-item { background: #1a1a1a; border: 1px solid #555; padding: 10px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center; }
-        #editForm { display: none; margin-top: 20px; }
+        #editSection { display: none; margin-top: 20px; }
     </style>
 </head>
 <body>
     <h1>Retro TV Admin</h1>
     <p><a href="/logout" style="color:#ffcc00;">Logout</a></p>
 
-    <!-- Add New Channel -->
+    <!-- Add Channel -->
     <div class="section">
         <h2>Add New Channel</h2>
         <form id="addChannelForm">
@@ -96,7 +96,7 @@ ADMIN_HTML = """
             <input type="text" name="name" placeholder="Channel Name" required>
             <input type="text" name="schedule" placeholder="Schedule Description">
             <select name="presentation">
-                <option value="single">Single Content</option>
+                <option value="single">Single</option>
                 <option value="gallery">Gallery</option>
                 <option value="linkcards">Linkcards</option>
             </select>
@@ -104,16 +104,26 @@ ADMIN_HTML = """
         </form>
     </div>
 
-    <!-- Edit Existing Channel -->
+    <!-- Edit Channel (Old Flow) -->
     <div class="section">
         <h2>Edit Channel</h2>
-        
-        <label><strong>Select Channel to Edit:</strong></label>
-        <select id="channelSelect" onchange="loadSelectedChannel()">
-            <option value="">-- Select a Channel --</option>
+
+        <!-- Step 1: Choose Band -->
+        <label><strong>Step 1: Choose Band</strong></label>
+        <select id="bandSelect" onchange="loadChannelsForBand()">
+            <option value="">-- Select VHF or UHF --</option>
+            <option value="vhf">VHF</option>
+            <option value="uhf">UHF</option>
         </select>
 
-        <div id="editForm">
+        <!-- Step 2: Choose Channel -->
+        <label><strong>Step 2: Choose Channel</strong></label>
+        <select id="channelSelect" onchange="loadSelectedChannel()" disabled>
+            <option value="">-- Select Channel --</option>
+        </select>
+
+        <!-- Edit Form -->
+        <div id="editSection">
             <h3 id="editingTitle"></h3>
 
             <label>Channel Name</label>
@@ -130,25 +140,43 @@ ADMIN_HTML = """
             </select>
 
             <br><br>
-            <button onclick="saveChannelChanges()">Save Changes</button>
+            <button onclick="saveChannelChanges()">Save Channel</button>
             <button onclick="deleteSelectedChannel()" style="background:#cc4444; color:white;">Delete Channel</button>
 
             <br><br>
             <h3>Add Media</h3>
             <select id="mediaType">
                 <option value="image">Image</option>
-                <option value="youtube">YouTube Video</option>
+                <option value="youtube">YouTube</option>
                 <option value="text">Text</option>
                 <option value="linkcard">Linkcard</option>
             </select>
             <input type="text" id="mediaTitle" placeholder="Title">
-            <input type="text" id="mediaUrl" placeholder="URL or Content">
-            <button onclick="addMediaToChannel()">Add Media</button>
+            <input type="text" id="mediaUrl" placeholder="URL">
+            <button onclick="addMedia()">Add Media</button>
 
             <br><br>
             <h3>Current Media</h3>
             <div id="mediaList"></div>
         </div>
+    </div>
+
+    <!-- Guide Scroll Speed -->
+    <div class="section">
+        <h2>Guide Scroll Speed</h2>
+        <input type="number" id="scrollSpeed" step="0.05" min="0.1" max="2" style="width: 150px;">
+        <button onclick="saveScrollSpeed()">Save Speed</button>
+        <p style="color:#888; font-size:13px;">Lower = slower classic crawl. Recommended: 0.20 – 0.80</p>
+    </div>
+
+    <!-- CRT Settings -->
+    <div class="section">
+        <h2>CRT / Phosphor Settings</h2>
+        <label><input type="checkbox" id="scanlines"> Enable Scanlines</label><br>
+        <label><input type="checkbox" id="phosphor"> Enable Phosphor Glow</label><br>
+        <label>Phosphor Intensity</label>
+        <input type="range" id="phosphorIntensity" min="0" max="1" step="0.1" value="0.5">
+        <button onclick="saveCRTSettings()">Save CRT Settings</button>
     </div>
 
     <script>
@@ -159,38 +187,54 @@ ADMIN_HTML = """
         async function loadData() {
             const res = await fetch('/api/schedule');
             scheduleData = await res.json();
-            populateChannelDropdown();
+            
+            // Load scroll speed
+            if (scheduleData.guide_scroll_speed) {
+                document.getElementById('scrollSpeed').value = scheduleData.guide_scroll_speed;
+            }
+            
+            // Load CRT settings if they exist
+            if (scheduleData.crt_settings) {
+                const crt = scheduleData.crt_settings;
+                document.getElementById('scanlines').checked = crt.scanlines || false;
+                document.getElementById('phosphor').checked = crt.phosphor || false;
+                document.getElementById('phosphorIntensity').value = crt.phosphorIntensity || 0.5;
+            }
         }
 
-        function populateChannelDropdown() {
-            const select = document.getElementById('channelSelect');
-            select.innerHTML = '<option value="">-- Select a Channel --</option>';
+        function loadChannelsForBand() {
+            const band = document.getElementById('bandSelect').value;
+            const channelSelect = document.getElementById('channelSelect');
+            const editSection = document.getElementById('editSection');
 
-            ['vhf', 'uhf'].forEach(band => {
-                scheduleData[band].forEach((ch, index) => {
-                    const option = document.createElement('option');
-                    option.value = `${band}-${index}`;
-                    option.textContent = `${band.toUpperCase()} - ${ch.name}`;
-                    select.appendChild(option);
-                });
+            channelSelect.innerHTML = '<option value="">-- Select Channel --</option>';
+            channelSelect.disabled = true;
+            editSection.style.display = 'none';
+
+            if (!band) return;
+
+            currentBand = band;
+            scheduleData[band].forEach((ch, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = ch.name;
+                channelSelect.appendChild(option);
             });
+
+            channelSelect.disabled = false;
         }
 
         function loadSelectedChannel() {
-            const select = document.getElementById('channelSelect');
-            const value = select.value;
-            const form = document.getElementById('editForm');
+            const channelSelect = document.getElementById('channelSelect');
+            const editSection = document.getElementById('editSection');
 
-            if (!value) {
-                form.style.display = 'none';
+            if (!channelSelect.value) {
+                editSection.style.display = 'none';
                 return;
             }
 
-            const [band, index] = value.split('-');
-            currentBand = band;
-            currentIndex = parseInt(index);
-
-            const ch = scheduleData[band][currentIndex];
+            currentIndex = parseInt(channelSelect.value);
+            const ch = scheduleData[currentBand][currentIndex];
 
             document.getElementById('editingTitle').textContent = `Editing: ${ch.name}`;
             document.getElementById('editName').value = ch.name;
@@ -198,7 +242,7 @@ ADMIN_HTML = """
             document.getElementById('editPresentation').value = ch.presentation || 'single';
 
             renderMediaList();
-            form.style.display = 'block';
+            editSection.style.display = 'block';
         }
 
         function renderMediaList() {
@@ -229,24 +273,20 @@ ADMIN_HTML = """
             ch.presentation = document.getElementById('editPresentation').value;
 
             await saveData();
-            alert('Channel updated!');
+            alert('Channel saved!');
             await loadData();
-            populateChannelDropdown();
-            
-            // Re-select the channel
-            document.getElementById('channelSelect').value = `${currentBand}-${currentIndex}`;
         }
 
         async function deleteSelectedChannel() {
             if (!confirm('Delete this channel?')) return;
             scheduleData[currentBand].splice(currentIndex, 1);
             await saveData();
-            document.getElementById('editForm').style.display = 'none';
+            document.getElementById('editSection').style.display = 'none';
+            document.getElementById('channelSelect').innerHTML = '<option value="">-- Select Channel --</option>';
             await loadData();
-            populateChannelDropdown();
         }
 
-        async function addMediaToChannel() {
+        async function addMedia() {
             const ch = scheduleData[currentBand][currentIndex];
             if (!ch.media) ch.media = [];
 
@@ -257,17 +297,33 @@ ADMIN_HTML = """
             ch.media.push({ type, title, url });
             await saveData();
             renderMediaList();
-            
-            // Clear inputs
             document.getElementById('mediaTitle').value = '';
             document.getElementById('mediaUrl').value = '';
         }
 
         async function deleteMedia(mediaIndex) {
-            if (!confirm('Delete this media item?')) return;
+            if (!confirm('Delete this media?')) return;
             scheduleData[currentBand][currentIndex].media.splice(mediaIndex, 1);
             await saveData();
             renderMediaList();
+        }
+
+        async function saveScrollSpeed() {
+            const speed = parseFloat(document.getElementById('scrollSpeed').value);
+            scheduleData.guide_scroll_speed = speed;
+            await saveData();
+            alert('Scroll speed saved!');
+        }
+
+        async function saveCRTSettings() {
+            if (!scheduleData.crt_settings) scheduleData.crt_settings = {};
+
+            scheduleData.crt_settings.scanlines = document.getElementById('scanlines').checked;
+            scheduleData.crt_settings.phosphor = document.getElementById('phosphor').checked;
+            scheduleData.crt_settings.phosphorIntensity = parseFloat(document.getElementById('phosphorIntensity').value);
+
+            await saveData();
+            alert('CRT settings saved!');
         }
 
         async function saveData() {
@@ -293,7 +349,6 @@ ADMIN_HTML = """
             await saveData();
             this.reset();
             await loadData();
-            populateChannelDropdown();
         });
 
         loadData();
