@@ -10,9 +10,6 @@ CORS(app)
 
 app.config['SECRET_KEY'] = 'retro-tv-secret-key-2026'
 
-# =====================
-# PASSWORD
-# =====================
 ADMIN_PASSWORD = "MuffinBennett!987"
 ADMIN_PASSWORD_HASH = generate_password_hash(ADMIN_PASSWORD)
 
@@ -41,7 +38,7 @@ def save_schedule(data):
         json.dump(data, f, indent=2)
 
 # =====================
-# LOGIN
+# LOGIN PAGE
 # =====================
 LOGIN_HTML = """
 <!DOCTYPE html>
@@ -66,7 +63,7 @@ LOGIN_HTML = """
 """
 
 # =====================
-# ADMIN PAGE (Good Version)
+# FULL ADMIN PAGE
 # =====================
 ADMIN_HTML = """
 <!DOCTYPE html>
@@ -74,14 +71,16 @@ ADMIN_HTML = """
 <head>
     <title>Admin - Retro TV</title>
     <style>
-        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 25px; max-width: 1200px; margin: 0 auto; }
-        h1, h2 { color: #ffcc00; }
+        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 20px; max-width: 1300px; margin: 0 auto; }
+        h1, h2, h3 { color: #ffcc00; }
         .section { background: #111; border: 3px solid #334455; padding: 20px; margin-bottom: 25px; }
-        input, select, button, textarea { background: #222; color: #fff; border: 2px solid #555; padding: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; }
+        input, select, button, textarea { background: #222; color: #fff; border: 2px solid #555; padding: 8px; margin: 5px 0; width: 100%; box-sizing: border-box; font-family: inherit; }
         button { background: #39ff14; color: #000; cursor: pointer; font-weight: bold; width: auto; padding: 10px 18px; }
         button:hover { background: #ffcc00; }
-        .channel-card { background: #1a1a1a; border: 2px solid #556677; padding: 15px; margin-bottom: 15px; }
-        .media-item { background: #222; border: 1px solid #555; padding: 10px; margin: 8px 0; }
+        .channel-card { background: #1a1a1a; border: 2px solid #556677; padding: 15px; margin-bottom: 20px; }
+        .media-item { background: #222; border: 1px solid #555; padding: 10px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center; }
+        .form-row { display: flex; gap: 10px; }
+        .form-row > * { flex: 1; }
     </style>
 </head>
 <body>
@@ -92,11 +91,13 @@ ADMIN_HTML = """
     <div class="section">
         <h2>Add New Channel</h2>
         <form id="addChannelForm">
-            <select name="band">
-                <option value="vhf">VHF</option>
-                <option value="uhf">UHF</option>
-            </select>
-            <input type="text" name="name" placeholder="Channel Name" required>
+            <div class="form-row">
+                <select name="band">
+                    <option value="vhf">VHF</option>
+                    <option value="uhf">UHF</option>
+                </select>
+                <input type="text" name="name" placeholder="Channel Name" required>
+            </div>
             <input type="text" name="schedule" placeholder="Schedule Description">
             <select name="presentation">
                 <option value="single">Single Content</option>
@@ -107,9 +108,9 @@ ADMIN_HTML = """
         </form>
     </div>
 
-    <!-- Channel List -->
+    <!-- Existing Channels -->
     <div class="section">
-        <h2>Manage Channels</h2>
+        <h2>Existing Channels</h2>
         <div id="channelList"></div>
     </div>
 
@@ -130,30 +131,85 @@ ADMIN_HTML = """
                 scheduleData[band].forEach((ch, index) => {
                     const div = document.createElement('div');
                     div.className = 'channel-card';
-                    
+
                     let mediaHTML = '';
                     if (ch.media && ch.media.length > 0) {
-                        mediaHTML = '<strong>Media:</strong><br>';
+                        mediaHTML = '<h3>Media</h3>';
                         ch.media.forEach((m, mIndex) => {
-                            mediaHTML += `• ${m.title || m.type} (${m.type}) <button onclick="deleteMedia('${band}', ${index}, ${mIndex})">Delete</button><br>`;
+                            mediaHTML += `
+                                <div class="media-item">
+                                    <span>${m.title || m.type} (${m.type})</span>
+                                    <button onclick="deleteMedia('${band}', ${index}, ${mIndex})">Delete</button>
+                                </div>`;
                         });
                     }
 
                     div.innerHTML = `
-                        <strong>${band.toUpperCase()} ${index + 1}:</strong> ${ch.name}<br>
-                        Schedule: ${ch.schedule || ''}<br>
-                        Style: ${ch.presentation || 'single'}<br><br>
-                        ${mediaHTML}
+                        <h3>${band.toUpperCase()} - ${ch.name}</h3>
+                        
+                        <label>Channel Name</label>
+                        <input type="text" id="name-${band}-${index}" value="${ch.name}">
+                        
+                        <label>Schedule</label>
+                        <input type="text" id="schedule-${band}-${index}" value="${ch.schedule || ''}">
+                        
+                        <label>Presentation Style</label>
+                        <select id="presentation-${band}-${index}">
+                            <option value="single" ${ch.presentation === 'single' ? 'selected' : ''}>Single</option>
+                            <option value="gallery" ${ch.presentation === 'gallery' ? 'selected' : ''}>Gallery</option>
+                            <option value="linkcards" ${ch.presentation === 'linkcards' ? 'selected' : ''}>Linkcards</option>
+                        </select>
+
+                        <br><br>
+                        <button onclick="saveChannel('${band}', ${index})">Save Changes</button>
                         <button onclick="deleteChannel('${band}', ${index})">Delete Channel</button>
+
+                        <br><br>
+                        <h3>Add Media</h3>
+                        <select id="mediaType-${band}-${index}">
+                            <option value="image">Image</option>
+                            <option value="youtube">YouTube Video</option>
+                            <option value="text">Text</option>
+                            <option value="linkcard">Linkcard</option>
+                        </select>
+                        <input type="text" id="mediaTitle-${band}-${index}" placeholder="Title">
+                        <input type="text" id="mediaUrl-${band}-${index}" placeholder="URL or content">
+                        <button onclick="addMedia('${band}', ${index})">Add Media</button>
+
+                        ${mediaHTML}
                     `;
                     container.appendChild(div);
                 });
             });
         }
 
+        async function saveChannel(band, index) {
+            const ch = scheduleData[band][index];
+            ch.name = document.getElementById(`name-${band}-${index}`).value;
+            ch.schedule = document.getElementById(`schedule-${band}-${index}`).value;
+            ch.presentation = document.getElementById(`presentation-${band}-${index}`).value;
+
+            await saveData();
+            alert("Channel updated!");
+            loadData();
+        }
+
         async function deleteChannel(band, index) {
             if (!confirm("Delete this channel?")) return;
             scheduleData[band].splice(index, 1);
+            await saveData();
+            loadData();
+        }
+
+        async function addMedia(band, index) {
+            const ch = scheduleData[band][index];
+            if (!ch.media) ch.media = [];
+
+            const type = document.getElementById(`mediaType-${band}-${index}`).value;
+            const title = document.getElementById(`mediaTitle-${band}-${index}`).value;
+            const url = document.getElementById(`mediaUrl-${band}-${index}`).value;
+
+            ch.media.push({ type, title, url });
             await saveData();
             loadData();
         }
@@ -211,7 +267,7 @@ def update_schedule():
     if not new_data:
         return jsonify({"error": "No data provided"}), 400
     save_schedule(new_data)
-    return jsonify({"message": "Saved"})
+    return jsonify({"message": "Saved successfully"})
 
 @app.route('/admin')
 @login_required
