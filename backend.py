@@ -63,7 +63,7 @@ LOGIN_HTML = """
 """
 
 # =====================
-# ADMIN PAGE (with Description box)
+# ADMIN PAGE
 # =====================
 ADMIN_HTML = """
 <!DOCTYPE html>
