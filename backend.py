@@ -38,9 +38,158 @@ def save_schedule(data):
         json.dump(data, f, indent=2)
 
 # =====================
-# ADMIN HTML
+# LOGIN PAGE
 # =====================
-ADMIN_HTML = """... (same admin HTML from previous message with description box) ..."""
+LOGIN_HTML = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Admin Login - Retro TV</title>
+    <style>
+        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 40px; text-align: center; }
+        input { background: #222; color: white; border: 2px solid #555; padding: 12px; font-size: 18px; width: 300px; }
+        button { background: #39ff14; color: black; border: none; padding: 12px 30px; font-size: 18px; cursor: pointer; margin-top: 20px; }
+        button:hover { background: #ffcc00; }
+    </style>
+</head>
+<body>
+    <h1>Retro TV Admin</h1>
+    <form method="POST">
+        <input type="password" name="password" placeholder="Enter Admin Password" required><br>
+        <button type="submit">Login</button>
+    </form>
+</body>
+</html>
+"""
+
+# =====================
+# ADMIN PAGE (with Description box)
+# =====================
+ADMIN_HTML = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - Retro TV</title>
+    <style>
+        body { font-family: 'Press Start 2P', system-ui; background: #0a0a1f; color: #39ff14; padding: 30px; max-width: 1100px; margin: 0 auto; }
+        h1, h2 { color: #ffcc00; }
+        .section { background: #111; border: 3px solid #334455; padding: 20px; margin-bottom: 30px; }
+        input, select, button, textarea { background: #222; color: #fff; border: 2px solid #555; padding: 8px; margin: 6px 0; font-family: inherit; width: 100%; box-sizing: border-box; }
+        button { background: #39ff14; color: #000; cursor: pointer; font-weight: bold; width: auto; padding: 8px 16px; }
+        button:hover { background: #ffcc00; }
+        .success { color: #39ff14; font-weight: bold; padding: 10px; background: #112211; border: 2px solid #39ff14; margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <h1>Retro TV Admin</h1>
+    
+    <div class="section">
+        <h2>Edit Channel</h2>
+        <select id="channelSelect" onchange="loadSelectedChannel()">
+            <option value="">-- Select a Channel --</option>
+        </select>
+
+        <div id="editForm" style="display:none; margin-top:20px;">
+            <label>Channel Name:</label>
+            <input type="text" id="channelName">
+
+            <label>Schedule:</label>
+            <input type="text" id="channelSchedule">
+
+            <label>Description:</label>
+            <textarea id="channelDescription" rows="4"></textarea>
+
+            <label>Presentation:</label>
+            <select id="channelPresentation">
+                <option value="single">Single</option>
+                <option value="gallery">Gallery</option>
+                <option value="linkcards">Link Cards</option>
+            </select>
+
+            <br><br>
+            <button onclick="saveChannelChanges()">Save Changes</button>
+        </div>
+    </div>
+
+    <div id="statusMessage" class="success" style="display:none;"></div>
+
+    <script>
+        let scheduleData = { vhf: [], uhf: [] };
+        let currentType = '';
+        let currentIndex = -1;
+
+        async function loadSchedule() {
+            const res = await fetch('/api/schedule');
+            scheduleData = await res.json();
+            populateDropdown();
+        }
+
+        function populateDropdown() {
+            const select = document.getElementById('channelSelect');
+            select.innerHTML = '<option value="">-- Select a Channel --</option>';
+            
+            scheduleData.vhf.forEach((ch, i) => {
+                const opt = document.createElement('option');
+                opt.value = `vhf-${i}`;
+                opt.textContent = `VHF: ${ch.name}`;
+                select.appendChild(opt);
+            });
+            
+            scheduleData.uhf.forEach((ch, i) => {
+                const opt = document.createElement('option');
+                opt.value = `uhf-${i}`;
+                opt.textContent = `UHF: ${ch.name}`;
+                select.appendChild(opt);
+            });
+        }
+
+        function loadSelectedChannel() {
+            const value = document.getElementById('channelSelect').value;
+            if (!value) {
+                document.getElementById('editForm').style.display = 'none';
+                return;
+            }
+            const [type, index] = value.split('-');
+            currentType = type;
+            currentIndex = parseInt(index);
+
+            const ch = scheduleData[type][currentIndex];
+            document.getElementById('channelName').value = ch.name || '';
+            document.getElementById('channelSchedule').value = ch.schedule || '';
+            document.getElementById('channelDescription').value = ch.description || '';
+            document.getElementById('channelPresentation').value = ch.presentation || 'single';
+            document.getElementById('editForm').style.display = 'block';
+        }
+
+        async function saveChannelChanges() {
+            const ch = scheduleData[currentType][currentIndex];
+            ch.name = document.getElementById('channelName').value;
+            ch.schedule = document.getElementById('channelSchedule').value;
+            ch.description = document.getElementById('channelDescription').value;
+            ch.presentation = document.getElementById('channelPresentation').value;
+
+            const status = document.getElementById('statusMessage');
+            status.style.display = 'block';
+            status.innerText = 'Saving...';
+
+            await fetch('/api/schedule', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(scheduleData)
+            });
+
+            status.innerText = 'Saved!';
+            setTimeout(() => status.style.display = 'none', 2000);
+            await loadSchedule();
+        }
+
+        loadSchedule();
+    </script>
+</body>
+</html>
+"""
 
 # =====================
 # ROUTES
