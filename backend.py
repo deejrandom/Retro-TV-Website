@@ -31,14 +31,14 @@ def load_schedule():
     if os.path.exists(SCHEDULE_FILE):
         with open(SCHEDULE_FILE, "r") as f:
             return json.load(f)
-    return {"vhf": [], "uhf": [], "guide_scroll_speed": 0.36}
+    return {"vhf": [], "uhf": [], "guide_scroll_speed": 0.36, "crt_settings": {}}
 
 def save_schedule(data):
     with open(SCHEDULE_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
 # =====================
-# LOGIN PAGE
+# LOGIN
 # =====================
 LOGIN_HTML = """
 <!DOCTYPE html>
@@ -167,8 +167,8 @@ ADMIN_HTML = """
             <!-- Text Block fields -->
             <div id="textFields" class="text-fields">
                 <input type="text" id="textTitle" placeholder="Optional Title">
-                <textarea id="textContent" placeholder="Your text here..." rows="6"></textarea>
-                <small style="color:#888;">Use **bold** and *italic* for formatting</small>
+                <textarea id="textContent" placeholder="Your text here. Use **bold** and *italic*" rows="6"></textarea>
+                <small style="color:#888;">Formatting: **bold**, *italic*, line breaks, - bullets</small>
             </div>
 
             <button onclick="addMedia()">Add Media</button>
@@ -187,6 +187,16 @@ ADMIN_HTML = """
         <p style="color:#888; font-size:13px;">Lower = slower classic crawl. Recommended: 0.20 – 0.80</p>
     </div>
 
+    <!-- CRT Settings -->
+    <div class="section">
+        <h2>CRT / Phosphor Settings</h2>
+        <label><input type="checkbox" id="scanlines"> Enable Scanlines</label><br>
+        <label><input type="checkbox" id="phosphor"> Enable Phosphor Glow</label><br><br>
+        <label>Phosphor Intensity</label>
+        <input type="range" id="phosphorIntensity" min="0" max="1" step="0.1" value="0.5">
+        <button onclick="saveCRTSettings()">Save CRT Settings</button>
+    </div>
+
     <script>
         let scheduleData = {};
         let currentBand = '';
@@ -198,6 +208,13 @@ ADMIN_HTML = """
             
             if (scheduleData.guide_scroll_speed) {
                 document.getElementById('scrollSpeed').value = scheduleData.guide_scroll_speed;
+            }
+            
+            if (scheduleData.crt_settings) {
+                const crt = scheduleData.crt_settings;
+                document.getElementById('scanlines').checked = crt.scanlines || false;
+                document.getElementById('phosphor').checked = crt.phosphor || false;
+                document.getElementById('phosphorIntensity').value = crt.phosphorIntensity || 0.5;
             }
         }
 
@@ -334,6 +351,17 @@ ADMIN_HTML = """
             scheduleData.guide_scroll_speed = speed;
             await saveData();
             alert('Scroll speed saved!');
+        }
+
+        async function saveCRTSettings() {
+            if (!scheduleData.crt_settings) scheduleData.crt_settings = {};
+
+            scheduleData.crt_settings.scanlines = document.getElementById('scanlines').checked;
+            scheduleData.crt_settings.phosphor = document.getElementById('phosphor').checked;
+            scheduleData.crt_settings.phosphorIntensity = parseFloat(document.getElementById('phosphorIntensity').value);
+
+            await saveData();
+            alert('CRT settings saved!');
         }
 
         async function saveData() {
