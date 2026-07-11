@@ -259,29 +259,53 @@ ADMIN_HTML = """
             }
         }
 
-        function renderMediaList() {
-            const container = document.getElementById('mediaList');
-            container.innerHTML = '';
-
+        async function addMedia() {
             const ch = scheduleData[currentBand][currentIndex];
-            if (!ch.media || ch.media.length === 0) {
-                container.innerHTML = '<p style="color:#888;">No media yet.</p>';
-                return;
+            if (!ch.media) ch.media = [];
+
+            const type = document.getElementById('mediaType').value;
+
+            if (type === 'text') {
+                const title = document.getElementById('textTitle').value.trim();
+                const content = document.getElementById('textContent').value.trim();
+
+                if (!content) {
+                    alert("Please enter some text content.");
+                    return;
+                }
+
+                ch.media.push({
+                    type: "text",
+                    title: title || "",
+                    content: content
+                });
+
+                document.getElementById('textTitle').value = '';
+                document.getElementById('textContent').value = '';
+
+            } else {
+                const title = document.getElementById('mediaTitle').value.trim();
+                const url = document.getElementById('mediaUrl').value.trim();
+
+                if (!url) {
+                    alert("Please enter a URL.");
+                    return;
+                }
+
+                ch.media.push({ type, title, url });
+                document.getElementById('mediaTitle').value = '';
+                document.getElementById('mediaUrl').value = '';
             }
 
-            ch.media.forEach((m, mIndex) => {
-                const div = document.createElement('div');
-                div.className = 'media-item';
-                
-                let label = m.title || m.type;
-                if (m.type === 'text') label = 'Text Block: ' + (m.title || 'Untitled');
+            await saveData();
+            renderMediaList();
+        }
 
-                div.innerHTML = `
-                    <span>${label}</span>
-                    <button onclick="deleteMedia(${mIndex})">Delete</button>
-                `;
-                container.appendChild(div);
-            });
+        async function deleteMedia(mediaIndex) {
+            if (!confirm('Delete this media?')) return;
+            scheduleData[currentBand][currentIndex].media.splice(mediaIndex, 1);
+            await saveData();
+            renderMediaList();
         }
 
         async function saveChannelChanges() {
@@ -303,49 +327,6 @@ ADMIN_HTML = """
             document.getElementById('editSection').style.display = 'none';
             document.getElementById('channelSelect').innerHTML = '<option value="">-- Select Channel --</option>';
             await loadData();
-        }
-
-        async function addMedia() {
-            const ch = scheduleData[currentBand][currentIndex];
-            if (!ch.media) ch.media = [];
-
-            const type = document.getElementById('mediaType').value;
-
-            if (type === 'text') {
-                const title = document.getElementById('textTitle').value;
-                const content = document.getElementById('textContent').value;
-
-                if (!content) {
-                    alert("Please enter some text content.");
-                    return;
-                }
-
-                ch.media.push({
-                    type: "text",
-                    title: title,
-                    content: content
-                });
-
-                document.getElementById('textTitle').value = '';
-                document.getElementById('textContent').value = '';
-            } else {
-                const title = document.getElementById('mediaTitle').value;
-                const url = document.getElementById('mediaUrl').value;
-
-                ch.media.push({ type, title, url });
-                document.getElementById('mediaTitle').value = '';
-                document.getElementById('mediaUrl').value = '';
-            }
-
-            await saveData();
-            renderMediaList();
-        }
-
-        async function deleteMedia(mediaIndex) {
-            if (!confirm('Delete this media?')) return;
-            scheduleData[currentBand][currentIndex].media.splice(mediaIndex, 1);
-            await saveData();
-            renderMediaList();
         }
 
         async function saveScrollSpeed() {
@@ -380,9 +361,10 @@ ADMIN_HTML = """
             await loadData();
         });
 
-        // Initialize media fields
+        // Initialize
         document.getElementById('mediaType').value = 'image';
         toggleMediaFields();
+        document.getElementById('textFields').style.display = 'none';
 
         loadData();
     </script>
