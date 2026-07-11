@@ -31,14 +31,14 @@ def load_schedule():
     if os.path.exists(SCHEDULE_FILE):
         with open(SCHEDULE_FILE, "r") as f:
             return json.load(f)
-    return {"vhf": [], "uhf": [], "guide_scroll_speed": 0.36, "crt_settings": {}}
+    return {"vhf": [], "uhf": [], "guide_scroll_speed": 0.36}
 
 def save_schedule(data):
     with open(SCHEDULE_FILE, "w") as f:
         json.dump(data, f, indent=2)
 
 # =====================
-# LOGIN
+# LOGIN PAGE
 # =====================
 LOGIN_HTML = """
 <!DOCTYPE html>
@@ -167,8 +167,8 @@ ADMIN_HTML = """
             <!-- Text Block fields -->
             <div id="textFields" class="text-fields">
                 <input type="text" id="textTitle" placeholder="Optional Title">
-                <textarea id="textContent" placeholder="Your text here. Use **bold** and *italic*" rows="6"></textarea>
-                <small style="color:#888;">Formatting: **bold**, *italic*, line breaks, - bullets</small>
+                <textarea id="textContent" placeholder="Your text here..." rows="6"></textarea>
+                <small style="color:#888;">Use **bold** and *italic* for formatting</small>
             </div>
 
             <button onclick="addMedia()">Add Media</button>
