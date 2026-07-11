@@ -63,7 +63,7 @@ LOGIN_HTML = """
 """
 
 # =====================
-# ADMIN PAGE - OLD FLOW + SPEED + CRT
+# ADMIN PAGE
 # =====================
 ADMIN_HTML = """
 <!DOCTYPE html>
@@ -79,6 +79,7 @@ ADMIN_HTML = """
         button:hover { background: #ffcc00; }
         .media-item { background: #1a1a1a; border: 1px solid #555; padding: 10px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center; }
         #editSection { display: none; margin-top: 20px; }
+        .now-toggle { margin: 15px 0; padding: 10px; background: #1a2a1a; border: 2px solid #39ff14; }
     </style>
 </head>
 <body>
@@ -104,11 +105,10 @@ ADMIN_HTML = """
         </form>
     </div>
 
-    <!-- Edit Channel (Old Flow) -->
+    <!-- Edit Channel -->
     <div class="section">
         <h2>Edit Channel</h2>
 
-        <!-- Step 1: Choose Band -->
         <label><strong>Step 1: Choose Band</strong></label>
         <select id="bandSelect" onchange="loadChannelsForBand()">
             <option value="">-- Select VHF or UHF --</option>
@@ -116,13 +116,11 @@ ADMIN_HTML = """
             <option value="uhf">UHF</option>
         </select>
 
-        <!-- Step 2: Choose Channel -->
         <label><strong>Step 2: Choose Channel</strong></label>
         <select id="channelSelect" onchange="loadSelectedChannel()" disabled>
             <option value="">-- Select Channel --</option>
         </select>
 
-        <!-- Edit Form -->
         <div id="editSection">
             <h3 id="editingTitle"></h3>
 
@@ -139,7 +137,16 @@ ADMIN_HTML = """
                 <option value="linkcards">Linkcards</option>
             </select>
 
-            <br><br>
+            <!-- NEW: Manual NOW Badge Toggle -->
+            <div class="now-toggle">
+                <label>
+                    <input type="checkbox" id="editNow"> 
+                    <strong>Show "NOW" badge on guide</strong>
+                </label>
+                <p style="color:#888; font-size:12px; margin-top:6px;">(Manual control for now)</p>
+            </div>
+
+            <br>
             <button onclick="saveChannelChanges()">Save Channel</button>
             <button onclick="deleteSelectedChannel()" style="background:#cc4444; color:white;">Delete Channel</button>
 
@@ -147,12 +154,12 @@ ADMIN_HTML = """
             <h3>Add Media</h3>
             <select id="mediaType">
                 <option value="image">Image</option>
-                <option value="youtube">YouTube</option>
+                <option value="youtube">YouTube / Video</option>
                 <option value="text">Text</option>
                 <option value="linkcard">Linkcard</option>
             </select>
             <input type="text" id="mediaTitle" placeholder="Title">
-            <input type="text" id="mediaUrl" placeholder="URL">
+            <input type="text" id="mediaUrl" placeholder="URL or Link">
             <button onclick="addMedia()">Add Media</button>
 
             <br><br>
@@ -188,12 +195,10 @@ ADMIN_HTML = """
             const res = await fetch('/api/schedule');
             scheduleData = await res.json();
             
-            // Load scroll speed
             if (scheduleData.guide_scroll_speed) {
                 document.getElementById('scrollSpeed').value = scheduleData.guide_scroll_speed;
             }
             
-            // Load CRT settings if they exist
             if (scheduleData.crt_settings) {
                 const crt = scheduleData.crt_settings;
                 document.getElementById('scanlines').checked = crt.scanlines || false;
@@ -241,6 +246,9 @@ ADMIN_HTML = """
             document.getElementById('editSchedule').value = ch.schedule || '';
             document.getElementById('editPresentation').value = ch.presentation || 'single';
 
+            // NEW: Load NOW badge status
+            document.getElementById('editNow').checked = ch.now || false;
+
             renderMediaList();
             editSection.style.display = 'block';
         }
@@ -271,6 +279,9 @@ ADMIN_HTML = """
             ch.name = document.getElementById('editName').value;
             ch.schedule = document.getElementById('editSchedule').value;
             ch.presentation = document.getElementById('editPresentation').value;
+
+            // NEW: Save NOW badge status
+            ch.now = document.getElementById('editNow').checked;
 
             await saveData();
             alert('Channel saved!');
@@ -334,7 +345,6 @@ ADMIN_HTML = """
             });
         }
 
-        // Add new channel
         document.getElementById('addChannelForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const form = new FormData(this);
@@ -343,7 +353,8 @@ ADMIN_HTML = """
                 name: form.get('name'),
                 schedule: form.get('schedule'),
                 presentation: form.get('presentation'),
-                media: []
+                media: [],
+                now: false
             };
             scheduleData[form.get('band')].push(newChannel);
             await saveData();
