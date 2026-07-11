@@ -742,7 +742,7 @@
                         } else if (m.type === 'image') {
                             contentHTML += `<div style="margin:15px 0;"><img src="${m.url}" style="max-width:100%; border:2px solid #333;"></div>`;
                         } else if (m.type === 'text') {
-                            contentHTML += `<div class="text-block"><strong>${m.title || ''}</strong><br><br><div>${formatText(m.url)}</div></div>`;
+                            contentHTML += `<div class="text-block"><strong>${m.title || ''}</strong><br><br><div>${formatText(m.content)}</div></div>`;
                         }
                     });
                 }
