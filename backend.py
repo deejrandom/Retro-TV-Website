@@ -244,7 +244,7 @@ ADMIN_HTML = """
             const channelSelect = document.getElementById('channelSelect');
             const editSection = document.getElementById('editSection');
 
-            if (!channelSelect.value) {
+            if (!channelSelect.value || channelSelect.value === "") {
                 editSection.style.display = 'none';
                 return;
             }
