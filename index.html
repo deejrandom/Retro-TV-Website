@@ -118,9 +118,8 @@
             font-weight: bold;
         }
 
-        /* === TALLER STABLE GUIDE === */
         .guide-scroll-container {
-            height: 580px;           /* Much taller than before */
+            height: 580px;
             overflow: hidden;
             position: relative;
             border: 3px solid #334455;
@@ -402,6 +401,29 @@
             display: none;
             pointer-events: none;
         }
+
+        .now-badge {
+            background: #39ff14;
+            color: #000;
+            font-size: 10px;
+            padding: 1px 6px;
+            margin-right: 6px;
+            border-radius: 2px;
+            font-weight: bold;
+            display: inline-block;
+        }
+
+        .guide-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .guide-time {
+            font-size: 11px;
+            color: #ffcc00;
+        }
     </style>
 </head>
 <body>
@@ -534,6 +556,27 @@
                 .replace(/\n/g, '<br>');
             html = html.replace(/(<li.*?<\/li>)+/g, match => '<ul style="margin:8px 0 12px; padding-left:6px;">' + match + '</ul>');
             return html;
+        }
+
+        function getCurrentDateTime() {
+            const now = new Date();
+            const days = ["SUNDAY", "MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY"];
+            const months = ["JANUARY", "FEBRUARY", "MARCH", "APRIL", "MAY", "JUNE", 
+                            "JULY", "AUGUST", "SEPTEMBER", "OCTOBER", "NOVEMBER", "DECEMBER"];
+
+            const dayName = days[now.getDay()];
+            const monthName = months[now.getMonth()];
+            const date = now.getDate();
+            const year = now.getFullYear();
+
+            let hours = now.getHours();
+            let minutes = now.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+            minutes = minutes < 10 ? '0' + minutes : minutes;
+
+            return `${dayName} • ${monthName} ${date}, ${year} • ${hours}:${minutes} ${ampm}`;
         }
 
         async function loadSchedule() {
@@ -711,19 +754,26 @@
             scheduleData.vhf.forEach((ch, i) => container.appendChild(createChannelElement(ch, 'vhf', i)));
             scheduleData.uhf.forEach((ch, i) => container.appendChild(createChannelElement(ch, 'uhf', i)));
 
-            // VHF Guide
+            // =====================
+            // VHF GUIDE (Updated with time + NOW badge)
+            // =====================
             const vGuide = document.createElement('div');
             vGuide.id = 'vhfguide';
             vGuide.className = 'section vhf-section';
-            let vRows = `<div class="guide-entry guide-channel-num" onclick="showVHFGuide()">VHF 0</div>
-                         <div class="guide-entry" onclick="showVHFGuide()">VHF GUIDE</div>`;
+
+            let vRows = '';
             scheduleData.vhf.forEach((ch, i) => {
+                const nowBadge = ch.now ? `<span class="now-badge">NOW</span>` : '';
                 vRows += `<div class="guide-entry guide-channel-num" onclick="jumpToVHF(${i+1})">VHF ${i+2}</div>
-                          <div class="guide-entry" onclick="jumpToVHF(${i+1})">${ch.name}</div>`;
+                          <div class="guide-entry" onclick="jumpToVHF(${i+1})">${nowBadge}${ch.name}</div>`;
             });
             vRows += `<div class="guide-separator"></div>`;
+
             vGuide.innerHTML = `
-                <h2 class="channel-title">VHF 0 • CHANNEL GUIDE</h2>
+                <div class="guide-header">
+                    <h2 class="channel-title">VHF 0 • CHANNEL GUIDE</h2>
+                    <div class="guide-time" id="vhf-guide-time">${getCurrentDateTime()}</div>
+                </div>
                 <div class="guide-scroll-container">
                     <div class="guide-grids-wrapper">
                         <div class="guide-grid">${vRows}</div>
@@ -734,19 +784,26 @@
             `;
             container.appendChild(vGuide);
 
-            // UHF Guide
+            // =====================
+            // UHF GUIDE (Updated with time + NOW badge)
+            // =====================
             const uGuide = document.createElement('div');
             uGuide.id = 'uhfguide';
             uGuide.className = 'section uhf-section';
-            let uRows = `<div class="guide-entry guide-channel-num" onclick="showUHFGuide()">UHF 0</div>
-                         <div class="guide-entry" onclick="showUHFGuide()">UHF GUIDE</div>`;
+
+            let uRows = '';
             scheduleData.uhf.forEach((ch, i) => {
+                const nowBadge = ch.now ? `<span class="now-badge">NOW</span>` : '';
                 uRows += `<div class="guide-entry guide-channel-num" onclick="jumpToUHF(${i+1})">UHF ${i+2}</div>
-                          <div class="guide-entry" onclick="jumpToUHF(${i+1})">${ch.schedule}</div>`;
+                          <div class="guide-entry" onclick="jumpToUHF(${i+1})">${nowBadge}${ch.name}</div>`;
             });
             uRows += `<div class="guide-separator"></div>`;
+
             uGuide.innerHTML = `
-                <h2 class="channel-title">UHF 0 • CHANNEL GUIDE</h2>
+                <div class="guide-header">
+                    <h2 class="channel-title">UHF 0 • CHANNEL GUIDE</h2>
+                    <div class="guide-time" id="uhf-guide-time">${getCurrentDateTime()}</div>
+                </div>
                 <div class="guide-scroll-container">
                     <div class="guide-grids-wrapper">
                         <div class="guide-grid">${uRows}</div>
@@ -873,6 +930,15 @@
             generateContent();
             showVHFGuide();
             lastMode = 'vhf';
+
+            // Update guide times every minute
+            setInterval(() => {
+                const vhfTime = document.getElementById('vhf-guide-time');
+                const uhfTime = document.getElementById('uhf-guide-time');
+                const timeString = getCurrentDateTime();
+                if (vhfTime) vhfTime.textContent = timeString;
+                if (uhfTime) uhfTime.textContent = timeString;
+            }, 60000);
         }
 
         document.getElementById('vhfKnob').addEventListener('click', nextVHF);

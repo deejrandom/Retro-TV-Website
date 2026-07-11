@@ -80,6 +80,7 @@ ADMIN_HTML = """
         .media-item { background: #1a1a1a; border: 1px solid #555; padding: 10px; margin: 8px 0; display: flex; justify-content: space-between; align-items: center; }
         #editSection { display: none; margin-top: 20px; }
         .now-toggle { margin: 15px 0; padding: 10px; background: #1a2a1a; border: 2px solid #39ff14; }
+        .text-fields { display: none; }
     </style>
 </head>
 <body>
@@ -137,13 +138,11 @@ ADMIN_HTML = """
                 <option value="linkcards">Linkcards</option>
             </select>
 
-            <!-- NEW: Manual NOW Badge Toggle -->
             <div class="now-toggle">
                 <label>
                     <input type="checkbox" id="editNow"> 
                     <strong>Show "NOW" badge on guide</strong>
                 </label>
-                <p style="color:#888; font-size:12px; margin-top:6px;">(Manual control for now)</p>
             </div>
 
             <br>
@@ -152,14 +151,26 @@ ADMIN_HTML = """
 
             <br><br>
             <h3>Add Media</h3>
-            <select id="mediaType">
+            <select id="mediaType" onchange="toggleMediaFields()">
                 <option value="image">Image</option>
                 <option value="youtube">YouTube / Video</option>
-                <option value="text">Text</option>
+                <option value="text">Text Block</option>
                 <option value="linkcard">Linkcard</option>
             </select>
-            <input type="text" id="mediaTitle" placeholder="Title">
-            <input type="text" id="mediaUrl" placeholder="URL or Link">
+
+            <!-- Normal fields -->
+            <div id="normalFields">
+                <input type="text" id="mediaTitle" placeholder="Title">
+                <input type="text" id="mediaUrl" placeholder="URL or Link">
+            </div>
+
+            <!-- Text Block fields -->
+            <div id="textFields" class="text-fields">
+                <input type="text" id="textTitle" placeholder="Optional Title">
+                <textarea id="textContent" placeholder="Your text here. Use **bold** and *italic*" rows="6"></textarea>
+                <small style="color:#888;">Formatting: **bold**, *italic*, line breaks, - bullets</small>
+            </div>
+
             <button onclick="addMedia()">Add Media</button>
 
             <br><br>
@@ -176,16 +187,6 @@ ADMIN_HTML = """
         <p style="color:#888; font-size:13px;">Lower = slower classic crawl. Recommended: 0.20 – 0.80</p>
     </div>
 
-    <!-- CRT Settings -->
-    <div class="section">
-        <h2>CRT / Phosphor Settings</h2>
-        <label><input type="checkbox" id="scanlines"> Enable Scanlines</label><br>
-        <label><input type="checkbox" id="phosphor"> Enable Phosphor Glow</label><br>
-        <label>Phosphor Intensity</label>
-        <input type="range" id="phosphorIntensity" min="0" max="1" step="0.1" value="0.5">
-        <button onclick="saveCRTSettings()">Save CRT Settings</button>
-    </div>
-
     <script>
         let scheduleData = {};
         let currentBand = '';
@@ -197,13 +198,6 @@ ADMIN_HTML = """
             
             if (scheduleData.guide_scroll_speed) {
                 document.getElementById('scrollSpeed').value = scheduleData.guide_scroll_speed;
-            }
-            
-            if (scheduleData.crt_settings) {
-                const crt = scheduleData.crt_settings;
-                document.getElementById('scanlines').checked = crt.scanlines || false;
-                document.getElementById('phosphor').checked = crt.phosphor || false;
-                document.getElementById('phosphorIntensity').value = crt.phosphorIntensity || 0.5;
             }
         }
 
@@ -245,12 +239,24 @@ ADMIN_HTML = """
             document.getElementById('editName').value = ch.name;
             document.getElementById('editSchedule').value = ch.schedule || '';
             document.getElementById('editPresentation').value = ch.presentation || 'single';
-
-            // NEW: Load NOW badge status
             document.getElementById('editNow').checked = ch.now || false;
 
             renderMediaList();
             editSection.style.display = 'block';
+        }
+
+        function toggleMediaFields() {
+            const type = document.getElementById('mediaType').value;
+            const normal = document.getElementById('normalFields');
+            const text = document.getElementById('textFields');
+
+            if (type === 'text') {
+                normal.style.display = 'none';
+                text.style.display = 'block';
+            } else {
+                normal.style.display = 'block';
+                text.style.display = 'none';
+            }
         }
 
         function renderMediaList() {
@@ -266,8 +272,12 @@ ADMIN_HTML = """
             ch.media.forEach((m, mIndex) => {
                 const div = document.createElement('div');
                 div.className = 'media-item';
+                
+                let label = m.title || m.type;
+                if (m.type === 'text') label = 'Text Block: ' + (m.title || 'Untitled');
+
                 div.innerHTML = `
-                    <span>${m.title || m.type} (${m.type})</span>
+                    <span>${label}</span>
                     <button onclick="deleteMedia(${mIndex})">Delete</button>
                 `;
                 container.appendChild(div);
@@ -279,8 +289,6 @@ ADMIN_HTML = """
             ch.name = document.getElementById('editName').value;
             ch.schedule = document.getElementById('editSchedule').value;
             ch.presentation = document.getElementById('editPresentation').value;
-
-            // NEW: Save NOW badge status
             ch.now = document.getElementById('editNow').checked;
 
             await saveData();
@@ -302,14 +310,35 @@ ADMIN_HTML = """
             if (!ch.media) ch.media = [];
 
             const type = document.getElementById('mediaType').value;
-            const title = document.getElementById('mediaTitle').value;
-            const url = document.getElementById('mediaUrl').value;
 
-            ch.media.push({ type, title, url });
+            if (type === 'text') {
+                const title = document.getElementById('textTitle').value;
+                const content = document.getElementById('textContent').value;
+
+                if (!content) {
+                    alert("Please enter some text content.");
+                    return;
+                }
+
+                ch.media.push({
+                    type: "text",
+                    title: title,
+                    content: content
+                });
+
+                document.getElementById('textTitle').value = '';
+                document.getElementById('textContent').value = '';
+            } else {
+                const title = document.getElementById('mediaTitle').value;
+                const url = document.getElementById('mediaUrl').value;
+
+                ch.media.push({ type, title, url });
+                document.getElementById('mediaTitle').value = '';
+                document.getElementById('mediaUrl').value = '';
+            }
+
             await saveData();
             renderMediaList();
-            document.getElementById('mediaTitle').value = '';
-            document.getElementById('mediaUrl').value = '';
         }
 
         async function deleteMedia(mediaIndex) {
@@ -324,17 +353,6 @@ ADMIN_HTML = """
             scheduleData.guide_scroll_speed = speed;
             await saveData();
             alert('Scroll speed saved!');
-        }
-
-        async function saveCRTSettings() {
-            if (!scheduleData.crt_settings) scheduleData.crt_settings = {};
-
-            scheduleData.crt_settings.scanlines = document.getElementById('scanlines').checked;
-            scheduleData.crt_settings.phosphor = document.getElementById('phosphor').checked;
-            scheduleData.crt_settings.phosphorIntensity = parseFloat(document.getElementById('phosphorIntensity').value);
-
-            await saveData();
-            alert('CRT settings saved!');
         }
 
         async function saveData() {
@@ -361,6 +379,10 @@ ADMIN_HTML = """
             this.reset();
             await loadData();
         });
+
+        // Initialize media fields
+        document.getElementById('mediaType').value = 'image';
+        toggleMediaFields();
 
         loadData();
     </script>
