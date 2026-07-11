@@ -202,6 +202,31 @@ ADMIN_HTML = """
         let currentBand = '';
         let currentIndex = -1;
 
+        // Define renderMediaList FIRST
+        function renderMediaList() {
+            const container = document.getElementById('mediaList');
+            if (!container) return;
+            container.innerHTML = '';
+
+            const ch = scheduleData[currentBand][currentIndex];
+            if (!ch || !ch.media || ch.media.length === 0) {
+                container.innerHTML = '<p style="color:#888;">No media yet.</p>';
+                return;
+            }
+
+            ch.media.forEach((m, mIndex) => {
+                const div = document.createElement('div');
+                div.className = 'media-item';
+                let label = m.title || m.type;
+                if (m.type === 'text') label = 'Text: ' + (m.title || 'Untitled');
+                div.innerHTML = `
+                    <span>${label}</span>
+                    <button onclick="deleteMedia(${mIndex})">Delete</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
         async function loadData() {
             const res = await fetch('/api/schedule');
             scheduleData = await res.json();
