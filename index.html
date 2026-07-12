@@ -161,30 +161,25 @@
             opacity: 0.7;
         }
 
-        /* === TALLER TEXT (Almost full screen height) === */
-        .text-block {
-            font-family: 'VT323', 'Courier New', monospace;
-            font-size: 23px;
-            color: #aaffaa;
-            line-height: 1.75;
-            max-height: 620px;           /* Much taller now */
-            overflow-y: hidden;
-            margin: 15px 0;
-            padding-right: 10px;
-            position: relative;
-        }
+.text-block {
+    font-family: 'VT323', 'Courier New', monospace;
+    font-size: 22px;
+    color: #aaffaa;
+    line-height: 1.75;
+    margin: 0 0 15px 0;
+    padding: 55px 0 15px 0;     /* Top padding pushes content below the channel title */
+    background: none;
+    border: none;
+    overflow: hidden;
+    height: 580px;
+    position: relative;
+}
 
-        .text-block-inner {
-            will-change: transform;
-        }
-
-        .text-divider {
-            height: 2px;
-            background: linear-gradient(to right, transparent, #39ff14, transparent);
-            margin: 18px 0;
-            opacity: 0.6;
-        }
-
+/* New inner wrapper that actually scrolls */
+.text-content {
+    position: relative;
+    will-change: transform;
+}
         .video-container {
             position: relative;
             width: 100%;
@@ -480,10 +475,26 @@
         let vhfRotation = 0;
         let uhfRotation = 0;
         let guideScrollRAF = null;
+
         let textScrollRAF = null;
 
         let currentGalleryImages = [];
         let currentLightboxIndex = 0;
+
+        const SCHEDULE_API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+            ? 'http://localhost:5000/api/schedule'
+            : 'https://retro-tv-website.onrender.com/api/schedule';
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function escapeAttr(text) {
+            return escapeHtml(text).replace(/"/g, '&quot;');
+        }
 
         // =====================
         // CANVAS STATIC
@@ -560,55 +571,11 @@
             if (staticCanvas) staticCanvas.style.display = 'none';
         }
 
-        // =====================
-        // SEAMLESS UPWARD AUTO-SCROLL (Taller)
-        // =====================
-        function startAutoScrollTextBlocks() {
-            if (textScrollRAF) {
-                cancelAnimationFrame(textScrollRAF);
-            }
-
-            const textBlock = document.querySelector('.section.active .text-block');
-            if (!textBlock) return;
-
-            const originalContent = textBlock.innerHTML;
-
-            if (textBlock.scrollHeight <= textBlock.clientHeight + 20) return;
-
-            textBlock.innerHTML = `<div class="text-block-inner">${originalContent}</div>`;
-            const inner = textBlock.querySelector('.text-block-inner');
-            inner.innerHTML += originalContent;
-
-            let position = 0;
-            const scrollSpeed = 0.55;
-            let isPaused = false;
-
-            function scroll() {
-                if (!isPaused) {
-                    position += scrollSpeed;
-                    const singleHeight = inner.scrollHeight / 2;
-
-                    if (position >= singleHeight) {
-                        position -= singleHeight;
-                    }
-
-                    textBlock.scrollTop = position;
-                }
-                textScrollRAF = requestAnimationFrame(scroll);
-            }
-
-            textBlock.addEventListener('mouseenter', () => isPaused = true);
-            textBlock.addEventListener('mouseleave', () => isPaused = false);
-
-            textScrollRAF = requestAnimationFrame(scroll);
-        }
-
         function formatText(text) {
             if (!text) return '';
             let html = text
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 .replace(/^## (.+)$/gm, '<h3 style="color:#ffcc00; margin:14px 0 6px; font-size:15px;">$1</h3>')
-                .replace(/^---$/gm, '<div class="text-divider"></div>')
                 .replace(/^- (.+)$/gm, '<li style="margin-left:18px; margin-bottom:4px; list-style-type: disc;">$1</li>')
                 .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.+?)\*/g, '<em>$1</em>')
@@ -640,10 +607,11 @@
 
         async function loadSchedule() {
             try {
-                const res = await fetch('https://retro-tv-website.onrender.com/api/schedule');
+                const res = await fetch(SCHEDULE_API);
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
                 scheduleData = await res.json();
             } catch (err) {
-                console.error("Failed to load schedule from backend.");
+                console.error("Failed to load schedule from backend.", err);
                 scheduleData = { vhf: [], uhf: [] };
             }
         }
@@ -715,6 +683,41 @@
             updateLightboxCounter();
         }
 
+// =====================
+// SMOOTH TEXT SCROLLING (Stops below title + loops from bottom)
+// =====================
+function startAutoScrollTextBlocks() {
+    if (textScrollRAF) cancelAnimationFrame(textScrollRAF);
+
+    const textBlock = document.querySelector('.section.active .text-block');
+    const textContent = document.querySelector('.section.active .text-content');
+    
+    if (!textBlock || !textContent) return;
+
+    setTimeout(() => {
+        const contentHeight = textContent.scrollHeight;
+        const visibleHeight = textBlock.clientHeight;
+
+        if (contentHeight <= visibleHeight + 30) return;
+
+        let position = 0;
+        const scrollSpeed = scheduleData.guide_scroll_speed || 0.36;
+
+        function scroll() {
+            position -= scrollSpeed;
+
+            if (position <= -contentHeight) {
+                position = 0; // Come back from the bottom
+            }
+
+            textContent.style.transform = `translateY(${position}px)`;
+            textScrollRAF = requestAnimationFrame(scroll);
+        }
+
+        textScrollRAF = requestAnimationFrame(scroll);
+    }, 150);
+}
+
         document.addEventListener('keydown', function(e) {
             const lightbox = document.getElementById('lightbox');
             if (!lightbox.classList.contains('active')) return;
@@ -733,7 +736,7 @@
                 div.className = `section ${band}-section`;
 
                 const channelNumber = index + 2;
-                const channelHeader = `<h2 class="channel-title">${band.toUpperCase()} ${channelNumber} • ${ch.name}</h2>`;
+                const channelHeader = `<h2 class="channel-title">${band.toUpperCase()} ${channelNumber} • ${escapeHtml(ch.name)}</h2>`;
                 const hasMedia = ch.media && ch.media.length > 0;
 
                 let contentHTML = '';
@@ -744,18 +747,18 @@
 
                 if (!hasMedia) {
                     div.classList.add('empty-channel');
-                    contentHTML += `<p>${ch.schedule || ''}</p>`;
+                    contentHTML += `<p>${formatText(ch.schedule || '')}</p>`;
                 } 
                 else if (ch.presentation === 'linkcards') {
                     contentHTML += `<div class="linkcards-grid">`;
                     if (ch.media && ch.media.length > 0) {
                         const sortedMedia = [...ch.media].reverse();
                         sortedMedia.forEach(m => {
-                            const link = m.link || '#';
+                            const link = escapeAttr(m.link || '#');
                             contentHTML += `
-                                <a href="${link}" target="_blank" class="link-card">
-                                    ${m.url ? `<img src="${m.url}" alt="">` : ''}
-                                    <div class="link-card-title">${m.title || ''}</div>
+                                <a href="${link}" target="_blank" rel="noopener noreferrer" class="link-card">
+                                    ${m.url ? `<img src="${escapeAttr(m.url)}" alt="">` : ''}
+                                    <div class="link-card-title">${escapeHtml(m.title || '')}</div>
                                 </a>
                             `;
                         });
@@ -780,8 +783,8 @@
                             let cover = groupImages.find(m => m.is_group_cover === true) || groupImages[0];
                             gridHTML += `
                                 <div class="gallery-group-card" onclick='openLightbox(${JSON.stringify(groupImages)}, 0)'>
-                                    <img src="${cover.url}" alt="${groupName}">
-                                    <div class="group-name">${groupName}</div>
+                                    <img src="${escapeAttr(cover.url)}" alt="${escapeAttr(groupName)}">
+                                    <div class="group-name">${escapeHtml(groupName)}</div>
                                 </div>
                             `;
                         });
@@ -794,14 +797,21 @@
                         if (m.type === 'youtube' || m.type === 'video') {
                             let videoId = '';
                             if (m.url.includes('youtube.com')) videoId = m.url.split('v=')[1]?.split('&')[0];
-                            else if (m.url.includes('youtu.be')) videoId = m.url.split('/').pop();
-                            if (videoId) {
+                            else if (m.url.includes('youtu.be')) videoId = m.url.split('/').pop()?.split('?')[0];
+                            if (videoId && /^[\w-]{11}$/.test(videoId)) {
                                 contentHTML += `<div class="video-container"><iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}" frameborder="0" allowfullscreen></iframe></div>`;
                             }
                         } else if (m.type === 'image') {
-                            contentHTML += `<div style="margin:15px 0;"><img src="${m.url}" style="max-width:100%; border:2px solid #333;"></div>`;
+                            contentHTML += `<div style="margin:15px 0;"><img src="${escapeAttr(m.url)}" alt="${escapeAttr(m.title || '')}" style="max-width:100%; border:2px solid #333;"></div>`;
                         } else if (m.type === 'text') {
-                            contentHTML += `<div class="text-block"><div class="text-block-inner">${formatText(m.content)}</div></div>`;
+                            contentHTML += `
+                            <div class="text-block">
+                             <strong>${escapeHtml(m.title || '')}</strong><br><br>
+                             <div class="text-content">
+                            ${formatText(m.content)}
+        </div>
+    </div>
+`;
                         }
                     });
                 }
@@ -813,7 +823,9 @@
             scheduleData.vhf.forEach((ch, i) => container.appendChild(createChannelElement(ch, 'vhf', i)));
             scheduleData.uhf.forEach((ch, i) => container.appendChild(createChannelElement(ch, 'uhf', i)));
 
-            // Guides
+            // =====================
+            // VHF GUIDE (Updated with time + NOW badge)
+            // =====================
             const vGuide = document.createElement('div');
             vGuide.id = 'vhfguide';
             vGuide.className = 'section vhf-section';
@@ -822,7 +834,7 @@
             scheduleData.vhf.forEach((ch, i) => {
                 const nowBadge = ch.now ? `<span class="now-badge">NOW</span>` : '';
                 vRows += `<div class="guide-entry guide-channel-num" onclick="jumpToVHF(${i+1})">VHF ${i+2}</div>
-                          <div class="guide-entry" onclick="jumpToVHF(${i+1})">${nowBadge}${ch.name}</div>`;
+                          <div class="guide-entry" onclick="jumpToVHF(${i+1})">${nowBadge}${escapeHtml(ch.name)}</div>`;
             });
             vRows += `<div class="guide-separator"></div>`;
 
@@ -841,6 +853,9 @@
             `;
             container.appendChild(vGuide);
 
+            // =====================
+            // UHF GUIDE (Updated with time + NOW badge)
+            // =====================
             const uGuide = document.createElement('div');
             uGuide.id = 'uhfguide';
             uGuide.className = 'section uhf-section';
@@ -849,7 +864,7 @@
             scheduleData.uhf.forEach((ch, i) => {
                 const nowBadge = ch.now ? `<span class="now-badge">NOW</span>` : '';
                 uRows += `<div class="guide-entry guide-channel-num" onclick="jumpToUHF(${i+1})">UHF ${i+2}</div>
-                          <div class="guide-entry" onclick="jumpToUHF(${i+1})">${nowBadge}${ch.name}</div>`;
+                          <div class="guide-entry" onclick="jumpToUHF(${i+1})">${nowBadge}${escapeHtml(ch.name)}</div>`;
             });
             uRows += `<div class="guide-separator"></div>`;
 
@@ -882,63 +897,63 @@
             guide.classList.add('active');
             startGuideScroll(guide);
         }
+function updateDisplay() {
+    stopGuideScroll();
+    document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
 
-        function updateDisplay() {
-            stopGuideScroll();
-            if (textScrollRAF) {
-                cancelAnimationFrame(textScrollRAF);
-                textScrollRAF = null;
+    const screen = document.querySelector('.screen');
+    const tx = document.getElementById('noSignalText');
+
+    let isEmptyChannel = false;
+
+    if (currentMode === 'vhf') {
+        if (vhfIndex === 0) {
+            const guide = document.getElementById('vhfguide');
+            if (guide) {
+                guide.classList.add('active');
+                startGuideScroll(guide);
             }
-
-            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-
-            const screen = document.querySelector('.screen');
-            const tx = document.getElementById('noSignalText');
-
-            let isEmptyChannel = false;
-
-            if (currentMode === 'vhf') {
-                if (vhfIndex === 0) {
-                    const guide = document.getElementById('vhfguide');
-                    if (guide) {
-                        guide.classList.add('active');
-                        startGuideScroll(guide);
-                    }
-                } else {
-                    const ch = scheduleData.vhf[vhfIndex - 1];
-                    if (ch && document.getElementById(ch.id)) {
-                        document.getElementById(ch.id).classList.add('active');
-                        isEmptyChannel = !ch.media || ch.media.length === 0;
-                    }
-                }
-            } else {
-                if (uhfIndex === 0) {
-                    const guide = document.getElementById('uhfguide');
-                    if (guide) {
-                        guide.classList.add('active');
-                        startGuideScroll(guide);
-                    }
-                } else {
-                    const ch = scheduleData.uhf[uhfIndex - 1];
-                    if (ch && document.getElementById(ch.id)) {
-                        document.getElementById(ch.id).classList.add('active');
-                        isEmptyChannel = !ch.media || ch.media.length === 0;
-                    }
-                }
+        } else {
+            const ch = scheduleData.vhf[vhfIndex - 1];
+            if (ch && document.getElementById(ch.id)) {
+                document.getElementById(ch.id).classList.add('active');
+                isEmptyChannel = !ch.media || ch.media.length === 0;
             }
-
-            if (isEmptyChannel) {
-                startStaticEffect();
-                if (tx) tx.style.display = 'block';
-                if (screen) screen.classList.add('no-signal-active');
-            } else {
-                stopStaticEffect();
-                if (tx) tx.style.display = 'none';
-                if (screen) screen.classList.remove('no-signal-active');
-            }
-
-            startAutoScrollTextBlocks();
         }
+    } else {
+        if (uhfIndex === 0) {
+            const guide = document.getElementById('uhfguide');
+            if (guide) {
+                guide.classList.add('active');
+                startGuideScroll(guide);
+            }
+        } else {
+            const ch = scheduleData.uhf[uhfIndex - 1];
+            if (ch && document.getElementById(ch.id)) {
+                document.getElementById(ch.id).classList.add('active');
+                isEmptyChannel = !ch.media || ch.media.length === 0;
+            }
+        }
+    }
+
+    if (isEmptyChannel) {
+        startStaticEffect();
+        if (tx) tx.style.display = 'block';
+        if (screen) screen.classList.add('no-signal-active');
+    } else {
+        stopStaticEffect();
+        if (tx) tx.style.display = 'none';
+        if (screen) screen.classList.remove('no-signal-active');
+    }
+
+    // =====================
+    // START TEXT AUTO-SCROLLING
+    // =====================
+    setTimeout(() => {
+        startAutoScrollTextBlocks();
+    }, 120);
+}
+        
 
         function jumpToVHF(index) {
             stopGuideScroll();
@@ -992,6 +1007,7 @@
             showVHFGuide();
             lastMode = 'vhf';
 
+            // Update guide times every minute
             setInterval(() => {
                 const vhfTime = document.getElementById('vhf-guide-time');
                 const uhfTime = document.getElementById('uhf-guide-time');

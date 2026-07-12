@@ -1,4 +1,4 @@
-CHEDULE_FILEfrom flask import Flask, jsonify, request, render_template_string, redirect
+from flask import Flask, jsonify, request, render_template_string, redirect
 from flask_cors import CORS
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -8,10 +8,10 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-app.config['SECRET_KEY'] = 'retro-tv-secret-key-2026'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-only-change-me')
 
-ADMIN_PASSWORD = "MuffinBennett!987"
-ADMIN_PASSWORD_HASH = generate_password_hash(ADMIN_PASSWORD)
+ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
+ADMIN_PASSWORD_HASH = generate_password_hash(ADMIN_PASSWORD) if ADMIN_PASSWORD else None
 
 SCHEDULE_FILE = '/data/schedule.json'
 
@@ -225,20 +225,29 @@ ADMIN_HTML = """
                 const div = document.createElement('div');
                 div.className = 'media-item';
 
+                const label = document.createElement('span');
+                label.textContent = m.type === 'text'
+                    ? 'Text: ' + (m.title || 'Untitled')
+                    : (m.title || m.type);
+
+                const actions = document.createElement('div');
                 if (m.type === 'text') {
-                    div.innerHTML = `
-                        <span>Text: ${m.title || 'Untitled'}</span>
-                        <div>
-                            <button onclick="editTextBlock(${mIndex})">Edit</button>
-                            <button onclick="deleteMedia(${mIndex})" style="background:#cc4444; color:white;">Delete</button>
-                        </div>
-                    `;
-                } else {
-                    div.innerHTML = `
-                        <span>${m.title || m.type}</span>
-                        <button onclick="deleteMedia(${mIndex})" style="background:#cc4444; color:white;">Delete</button>
-                    `;
+                    const editBtn = document.createElement('button');
+                    editBtn.textContent = 'Edit';
+                    editBtn.onclick = () => editTextBlock(mIndex);
+                    actions.appendChild(editBtn);
                 }
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = 'Delete';
+                deleteBtn.style.background = '#cc4444';
+                deleteBtn.style.color = 'white';
+                deleteBtn.onclick = () => deleteMedia(mIndex);
+                actions.appendChild(deleteBtn);
+
+                div.appendChild(label);
+                if (m.type === 'text') div.appendChild(actions);
+                else div.appendChild(deleteBtn);
                 container.appendChild(div);
             });
         }
@@ -247,16 +256,47 @@ ADMIN_HTML = """
             const ch = scheduleData[currentBand][currentIndex];
             const item = ch.media[mediaIndex];
             const container = document.getElementById('mediaList');
+            container.innerHTML = '';
 
-            container.innerHTML = `
-                <div style="background:#1f2a1f; padding:15px; border:2px solid #39ff14;">
-                    <h4>Edit Text Block</h4>
-                    <input type="text" id="editTextTitle" value="${item.title || ''}" placeholder="Title"><br><br>
-                    <textarea id="editTextContent" rows="8" style="width:100%;">${item.content || ''}</textarea><br><br>
-                    <button onclick="saveTextEdit(${mediaIndex})">Save Changes</button>
-                    <button onclick="renderMediaList()" style="background:#555; margin-left:10px;">Cancel</button>
-                </div>
-            `;
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'background:#1f2a1f; padding:15px; border:2px solid #39ff14;';
+
+            const heading = document.createElement('h4');
+            heading.textContent = 'Edit Text Block';
+            wrapper.appendChild(heading);
+
+            const titleInput = document.createElement('input');
+            titleInput.type = 'text';
+            titleInput.id = 'editTextTitle';
+            titleInput.value = item.title || '';
+            titleInput.placeholder = 'Title';
+            titleInput.style.width = '100%';
+            wrapper.appendChild(titleInput);
+            wrapper.appendChild(document.createElement('br'));
+            wrapper.appendChild(document.createElement('br'));
+
+            const contentArea = document.createElement('textarea');
+            contentArea.id = 'editTextContent';
+            contentArea.rows = 8;
+            contentArea.style.width = '100%';
+            contentArea.value = item.content || '';
+            wrapper.appendChild(contentArea);
+            wrapper.appendChild(document.createElement('br'));
+            wrapper.appendChild(document.createElement('br'));
+
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Save Changes';
+            saveBtn.onclick = () => saveTextEdit(mediaIndex);
+            wrapper.appendChild(saveBtn);
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.style.background = '#555';
+            cancelBtn.style.marginLeft = '10px';
+            cancelBtn.onclick = () => renderMediaList();
+            wrapper.appendChild(cancelBtn);
+
+            container.appendChild(wrapper);
         }
 
         async function saveTextEdit(mediaIndex) {
@@ -456,6 +496,8 @@ def admin():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if not ADMIN_PASSWORD_HASH:
+        return "Admin login is not configured. Set the ADMIN_PASSWORD environment variable.", 503
     if request.method == 'POST':
         password = request.form.get('password')
         if check_password_hash(ADMIN_PASSWORD_HASH, password):
