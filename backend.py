@@ -158,17 +158,14 @@ ADMIN_HTML = """
                 <option value="linkcard">Linkcard</option>
             </select>
 
-            <!-- Normal fields -->
             <div id="normalFields">
                 <input type="text" id="mediaTitle" placeholder="Title">
                 <input type="text" id="mediaUrl" placeholder="URL or Link">
             </div>
 
-            <!-- Text Block fields -->
             <div id="textFields" class="text-fields">
                 <input type="text" id="textTitle" placeholder="Optional Title">
-                <textarea id="textContent" placeholder="Your text here. Use **bold** and *italic*" rows="6"></textarea>
-                <small style="color:#888;">Formatting: **bold**, *italic*, line breaks, - bullets</small>
+                <textarea id="textContent" placeholder="Your text here..." rows="6"></textarea>
             </div>
 
             <button onclick="addMedia()">Add Media</button>
@@ -184,17 +181,6 @@ ADMIN_HTML = """
         <h2>Guide Scroll Speed</h2>
         <input type="number" id="scrollSpeed" step="0.05" min="0.1" max="2" style="width: 150px;">
         <button onclick="saveScrollSpeed()">Save Speed</button>
-        <p style="color:#888; font-size:13px;">Lower = slower classic crawl. Recommended: 0.20 – 0.80</p>
-    </div>
-
-    <!-- CRT Settings -->
-    <div class="section">
-        <h2>CRT / Phosphor Settings</h2>
-        <label><input type="checkbox" id="scanlines"> Enable Scanlines</label><br>
-        <label><input type="checkbox" id="phosphor"> Enable Phosphor Glow</label><br><br>
-        <label>Phosphor Intensity</label>
-        <input type="range" id="phosphorIntensity" min="0" max="1" step="0.1" value="0.5">
-        <button onclick="saveCRTSettings()">Save CRT Settings</button>
     </div>
 
     <script>
@@ -202,7 +188,6 @@ ADMIN_HTML = """
         let currentBand = '';
         let currentIndex = -1;
 
-        // Define renderMediaList FIRST
         function renderMediaList() {
             const container = document.getElementById('mediaList');
             if (!container) return;
@@ -217,14 +202,50 @@ ADMIN_HTML = """
             ch.media.forEach((m, mIndex) => {
                 const div = document.createElement('div');
                 div.className = 'media-item';
-                let label = m.title || m.type;
-                if (m.type === 'text') label = 'Text: ' + (m.title || 'Untitled');
-                div.innerHTML = `
-                    <span>${label}</span>
-                    <button onclick="deleteMedia(${mIndex})">Delete</button>
-                `;
+
+                if (m.type === 'text') {
+                    div.innerHTML = `
+                        <span>Text: ${m.title || 'Untitled'}</span>
+                        <div>
+                            <button onclick="editTextBlock(${mIndex})">Edit</button>
+                            <button onclick="deleteMedia(${mIndex})" style="background:#cc4444; color:white;">Delete</button>
+                        </div>
+                    `;
+                } else {
+                    div.innerHTML = `
+                        <span>${m.title || m.type}</span>
+                        <button onclick="deleteMedia(${mIndex})" style="background:#cc4444; color:white;">Delete</button>
+                    `;
+                }
                 container.appendChild(div);
             });
+        }
+
+        function editTextBlock(mediaIndex) {
+            const ch = scheduleData[currentBand][currentIndex];
+            const item = ch.media[mediaIndex];
+            const container = document.getElementById('mediaList');
+
+            container.innerHTML = `
+                <div style="background:#1f2a1f; padding:15px; border:2px solid #39ff14;">
+                    <h4>Edit Text Block</h4>
+                    <input type="text" id="editTextTitle" value="${item.title || ''}" placeholder="Title"><br><br>
+                    <textarea id="editTextContent" rows="8" style="width:100%;">${item.content || ''}</textarea><br><br>
+                    <button onclick="saveTextEdit(${mediaIndex})">Save Changes</button>
+                    <button onclick="renderMediaList()" style="background:#555; margin-left:10px;">Cancel</button>
+                </div>
+            `;
+        }
+
+        async function saveTextEdit(mediaIndex) {
+            const title = document.getElementById('editTextTitle').value;
+            const content = document.getElementById('editTextContent').value;
+
+            scheduleData[currentBand][currentIndex].media[mediaIndex].title = title;
+            scheduleData[currentBand][currentIndex].media[mediaIndex].content = content;
+
+            await saveData();
+            renderMediaList();
         }
 
         async function loadData() {
@@ -233,13 +254,6 @@ ADMIN_HTML = """
             
             if (scheduleData.guide_scroll_speed) {
                 document.getElementById('scrollSpeed').value = scheduleData.guide_scroll_speed;
-            }
-            
-            if (scheduleData.crt_settings) {
-                const crt = scheduleData.crt_settings;
-                document.getElementById('scanlines').checked = crt.scanlines || false;
-                document.getElementById('phosphor').checked = crt.phosphor || false;
-                document.getElementById('phosphorIntensity').value = crt.phosphorIntensity || 0.5;
             }
         }
 
@@ -269,7 +283,7 @@ ADMIN_HTML = """
             const channelSelect = document.getElementById('channelSelect');
             const editSection = document.getElementById('editSection');
 
-            if (!channelSelect.value || channelSelect.value === "") {
+            if (!channelSelect.value) {
                 editSection.style.display = 'none';
                 return;
             }
@@ -289,16 +303,8 @@ ADMIN_HTML = """
 
         function toggleMediaFields() {
             const type = document.getElementById('mediaType').value;
-            const normal = document.getElementById('normalFields');
-            const text = document.getElementById('textFields');
-
-            if (type === 'text') {
-                normal.style.display = 'none';
-                text.style.display = 'block';
-            } else {
-                normal.style.display = 'block';
-                text.style.display = 'none';
-            }
+            document.getElementById('normalFields').style.display = (type === 'text') ? 'none' : 'block';
+            document.getElementById('textFields').style.display = (type === 'text') ? 'block' : 'none';
         }
 
         async function addMedia() {
@@ -316,15 +322,9 @@ ADMIN_HTML = """
                     return;
                 }
 
-                ch.media.push({
-                    type: "text",
-                    title: title || "",
-                    content: content
-                });
-
+                ch.media.push({ type: "text", title, content });
                 document.getElementById('textTitle').value = '';
                 document.getElementById('textContent').value = '';
-
             } else {
                 const title = document.getElementById('mediaTitle').value.trim();
                 const url = document.getElementById('mediaUrl').value.trim();
@@ -372,21 +372,9 @@ ADMIN_HTML = """
         }
 
         async function saveScrollSpeed() {
-            const speed = parseFloat(document.getElementById('scrollSpeed').value);
-            scheduleData.guide_scroll_speed = speed;
+            scheduleData.guide_scroll_speed = parseFloat(document.getElementById('scrollSpeed').value);
             await saveData();
             alert('Scroll speed saved!');
-        }
-
-        async function saveCRTSettings() {
-            if (!scheduleData.crt_settings) scheduleData.crt_settings = {};
-
-            scheduleData.crt_settings.scanlines = document.getElementById('scanlines').checked;
-            scheduleData.crt_settings.phosphor = document.getElementById('phosphor').checked;
-            scheduleData.crt_settings.phosphorIntensity = parseFloat(document.getElementById('phosphorIntensity').value);
-
-            await saveData();
-            alert('CRT settings saved!');
         }
 
         async function saveData() {
@@ -414,11 +402,8 @@ ADMIN_HTML = """
             await loadData();
         });
 
-        // Initialize
         document.getElementById('mediaType').value = 'image';
         toggleMediaFields();
-        document.getElementById('textFields').style.display = 'none';
-
         loadData();
     </script>
 </body>

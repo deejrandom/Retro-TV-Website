@@ -6,6 +6,7 @@
     <title>Warren C. Bennett's Retro Future</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
        
         :root {
             --neon-pink: #ff00ff;
@@ -160,16 +161,29 @@
             opacity: 0.7;
         }
 
+        /* === TALLER TEXT (Almost full screen height) === */
         .text-block {
-            background-color: #0f0f1a;
-            border: 3px solid #556677;
-            padding: 16px;
+            font-family: 'VT323', 'Courier New', monospace;
+            font-size: 21px;
+            color: #aaffaa;
+            line-height: 1.65;
+            max-height: 620px;           /* Much taller now */
+            overflow-y: hidden;
             margin: 15px 0;
-            line-height: 1.6;
+            padding-right: 10px;
+            position: relative;
         }
-        
-        .text-block strong { color: #ffcc00; }
-        .text-block em { color: #aaffff; }
+
+        .text-block-inner {
+            will-change: transform;
+        }
+
+        .text-divider {
+            height: 2px;
+            background: linear-gradient(to right, transparent, #39ff14, transparent);
+            margin: 18px 0;
+            opacity: 0.6;
+        }
 
         .video-container {
             position: relative;
@@ -466,6 +480,7 @@
         let vhfRotation = 0;
         let uhfRotation = 0;
         let guideScrollRAF = null;
+        let textScrollRAF = null;
 
         let currentGalleryImages = [];
         let currentLightboxIndex = 0;
@@ -545,11 +560,55 @@
             if (staticCanvas) staticCanvas.style.display = 'none';
         }
 
+        // =====================
+        // SEAMLESS UPWARD AUTO-SCROLL (Taller)
+        // =====================
+        function startAutoScrollTextBlocks() {
+            if (textScrollRAF) {
+                cancelAnimationFrame(textScrollRAF);
+            }
+
+            const textBlock = document.querySelector('.section.active .text-block');
+            if (!textBlock) return;
+
+            const originalContent = textBlock.innerHTML;
+
+            if (textBlock.scrollHeight <= textBlock.clientHeight + 20) return;
+
+            textBlock.innerHTML = `<div class="text-block-inner">${originalContent}</div>`;
+            const inner = textBlock.querySelector('.text-block-inner');
+            inner.innerHTML += originalContent;
+
+            let position = 0;
+            const scrollSpeed = 0.55;
+            let isPaused = false;
+
+            function scroll() {
+                if (!isPaused) {
+                    position += scrollSpeed;
+                    const singleHeight = inner.scrollHeight / 2;
+
+                    if (position >= singleHeight) {
+                        position -= singleHeight;
+                    }
+
+                    textBlock.scrollTop = position;
+                }
+                textScrollRAF = requestAnimationFrame(scroll);
+            }
+
+            textBlock.addEventListener('mouseenter', () => isPaused = true);
+            textBlock.addEventListener('mouseleave', () => isPaused = false);
+
+            textScrollRAF = requestAnimationFrame(scroll);
+        }
+
         function formatText(text) {
             if (!text) return '';
             let html = text
                 .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                 .replace(/^## (.+)$/gm, '<h3 style="color:#ffcc00; margin:14px 0 6px; font-size:15px;">$1</h3>')
+                .replace(/^---$/gm, '<div class="text-divider"></div>')
                 .replace(/^- (.+)$/gm, '<li style="margin-left:18px; margin-bottom:4px; list-style-type: disc;">$1</li>')
                 .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.+?)\*/g, '<em>$1</em>')
@@ -742,7 +801,7 @@
                         } else if (m.type === 'image') {
                             contentHTML += `<div style="margin:15px 0;"><img src="${m.url}" style="max-width:100%; border:2px solid #333;"></div>`;
                         } else if (m.type === 'text') {
-                            contentHTML += `<div class="text-block"><strong>${m.title || ''}</strong><br><br><div>${formatText(m.content)}</div></div>`;
+                            contentHTML += `<div class="text-block"><div class="text-block-inner">${formatText(m.content)}</div></div>`;
                         }
                     });
                 }
@@ -754,9 +813,7 @@
             scheduleData.vhf.forEach((ch, i) => container.appendChild(createChannelElement(ch, 'vhf', i)));
             scheduleData.uhf.forEach((ch, i) => container.appendChild(createChannelElement(ch, 'uhf', i)));
 
-            // =====================
-            // VHF GUIDE (Updated with time + NOW badge)
-            // =====================
+            // Guides
             const vGuide = document.createElement('div');
             vGuide.id = 'vhfguide';
             vGuide.className = 'section vhf-section';
@@ -784,9 +841,6 @@
             `;
             container.appendChild(vGuide);
 
-            // =====================
-            // UHF GUIDE (Updated with time + NOW badge)
-            // =====================
             const uGuide = document.createElement('div');
             uGuide.id = 'uhfguide';
             uGuide.className = 'section uhf-section';
@@ -831,6 +885,11 @@
 
         function updateDisplay() {
             stopGuideScroll();
+            if (textScrollRAF) {
+                cancelAnimationFrame(textScrollRAF);
+                textScrollRAF = null;
+            }
+
             document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
 
             const screen = document.querySelector('.screen');
@@ -877,6 +936,8 @@
                 if (tx) tx.style.display = 'none';
                 if (screen) screen.classList.remove('no-signal-active');
             }
+
+            startAutoScrollTextBlocks();
         }
 
         function jumpToVHF(index) {
@@ -931,7 +992,6 @@
             showVHFGuide();
             lastMode = 'vhf';
 
-            // Update guide times every minute
             setInterval(() => {
                 const vhfTime = document.getElementById('vhf-guide-time');
                 const uhfTime = document.getElementById('uhf-guide-time');
