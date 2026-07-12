@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, request, render_template_string, redirect
+CHEDULE_FILEfrom flask import Flask, jsonify, request, render_template_string, redirect
 from flask_cors import CORS
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -53,7 +53,7 @@ def load_schedule():
     if "crt_settings" not in data:
         data["crt_settings"] = {}
     
-    return data36, "crt_settings": {}}
+    return data
 
 def save_schedule(data):
     with open(SCHEDULE_FILE, "w") as f:
