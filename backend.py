@@ -13,7 +13,7 @@ app.config['SECRET_KEY'] = 'retro-tv-secret-key-2026'
 ADMIN_PASSWORD = "MuffinBennett!987"
 ADMIN_PASSWORD_HASH = generate_password_hash(ADMIN_PASSWORD)
 
-SCHEDULE_FILE = 'schedule.json'
+SCHEDULE_FILE = '/data/schedule.json'
 
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -30,8 +30,30 @@ def load_user(user_id):
 def load_schedule():
     if os.path.exists(SCHEDULE_FILE):
         with open(SCHEDULE_FILE, "r") as f:
-            return json.load(f)
-    return {"vhf": [], "uhf": [], "guide_scroll_speed": 0.36, "crt_settings": {}}
+            data = json.load(f)
+    else:
+        data = {
+            "vhf": [],
+            "uhf": [],
+            "guide_scroll_speed": 0.36,
+            "crt_settings": {}
+        }
+        # Create the file on first run
+        os.makedirs(os.path.dirname(SCHEDULE_FILE), exist_ok=True)
+        with open(SCHEDULE_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+    
+    # Ensure required keys exist (in case old data is missing them)
+    if "vhf" not in data:
+        data["vhf"] = []
+    if "uhf" not in data:
+        data["uhf"] = []
+    if "guide_scroll_speed" not in data:
+        data["guide_scroll_speed"] = 0.36
+    if "crt_settings" not in data:
+        data["crt_settings"] = {}
+    
+    return data36, "crt_settings": {}}
 
 def save_schedule(data):
     with open(SCHEDULE_FILE, "w") as f:
