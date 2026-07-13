@@ -8,7 +8,7 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-only-change-me')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'MuffinBennett!975')
 
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
 ADMIN_PASSWORD_HASH = generate_password_hash(ADMIN_PASSWORD) if ADMIN_PASSWORD else None
