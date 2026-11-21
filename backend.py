@@ -1,11 +1,16 @@
-from flask import Flask, jsonify, request, render_template_string, redirect, session, abort
+from flask import Flask, jsonify, request, render_template_string, redirect, session, abort, send_file
 from flask_cors import CORS
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
+import io
 import json
 import os
+import re
 import secrets
 import hmac
+import shutil
+import tempfile
+from datetime import datetime, timezone
 
 app = Flask(__name__)
 
@@ -63,10 +68,82 @@ def unauthorized():
 def load_user(user_id):
     return User(user_id)
 
+# =====================
+# SCHEDULE STORAGE + BACKUPS
+# =====================
+# Every save first copies the current lineup into /data/backups/ (newest 30 kept),
+# then writes the new one to a temp file and swaps it in, so a crash mid-save
+# can never leave a half-written schedule. If the live file is ever damaged,
+# the site serves the newest good backup instead of crashing.
+BACKUP_KEEP = 30
+BACKUP_NAME_RE = re.compile(r'^schedule-\d{8}-\d{6}-\d{6}(-\d+)?\.json$')
+
+def backup_dir():
+    return os.path.join(os.path.dirname(SCHEDULE_FILE), 'backups')
+
+def list_backups():
+    """Backup filenames, newest first."""
+    d = backup_dir()
+    if not os.path.isdir(d):
+        return []
+    return sorted((n for n in os.listdir(d) if BACKUP_NAME_RE.match(n)), reverse=True)
+
+def _write_json_atomic(path, data):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), prefix='.tmp-', suffix='.json')
+    try:
+        with os.fdopen(fd, 'w') as f:
+            json.dump(data, f, indent=2)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)   # all-or-nothing swap
+    except BaseException:
+        if os.path.exists(tmp):
+            os.remove(tmp)
+        raise
+
+def make_backup():
+    """Copy the current live schedule into the backups folder and prune old ones."""
+    if not os.path.exists(SCHEDULE_FILE):
+        return None
+    d = backup_dir()
+    os.makedirs(d, exist_ok=True)
+    # microseconds keep names unique and in the right order, even for saves in the same second
+    stamp = datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-%f')
+    name = f'schedule-{stamp}.json'
+    n = 1
+    while os.path.exists(os.path.join(d, name)):   # two saves in the same second
+        name = f'schedule-{stamp}-{n}.json'
+        n += 1
+    shutil.copy2(SCHEDULE_FILE, os.path.join(d, name))
+    for old in list_backups()[BACKUP_KEEP:]:
+        os.remove(os.path.join(d, old))
+    return name
+
+def _read_json(path):
+    with open(path, 'r') as f:
+        data = json.load(f)
+    if not isinstance(data, dict):
+        raise ValueError('schedule is not a JSON object')
+    return data
+
 def load_schedule():
     if os.path.exists(SCHEDULE_FILE):
-        with open(SCHEDULE_FILE, "r") as f:
-            data = json.load(f)
+        try:
+            data = _read_json(SCHEDULE_FILE)
+        except (ValueError, OSError) as err:
+            # Damaged file: leave it in place for recovery and fall back to the newest good backup
+            app.logger.error("schedule.json is unreadable (%s); falling back to backups", err)
+            data = None
+            for name in list_backups():
+                try:
+                    data = _read_json(os.path.join(backup_dir(), name))
+                    app.logger.warning("Serving backup %s", name)
+                    break
+                except (ValueError, OSError):
+                    continue
+            if data is None:
+                data = {"vhf": [], "uhf": []}
     else:
         data = {
             "vhf": [],
@@ -75,10 +152,8 @@ def load_schedule():
             "crt_settings": {}
         }
         # Create the file on first run
-        os.makedirs(os.path.dirname(SCHEDULE_FILE), exist_ok=True)
-        with open(SCHEDULE_FILE, "w") as f:
-            json.dump(data, f, indent=2)
-    
+        _write_json_atomic(SCHEDULE_FILE, data)
+
     # Ensure required keys exist (in case old data is missing them)
     if "vhf" not in data:
         data["vhf"] = []
@@ -92,8 +167,18 @@ def load_schedule():
     return data
 
 def save_schedule(data):
-    with open(SCHEDULE_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    # Only back up a good file; a damaged one would push out a real backup
+    try:
+        _read_json(SCHEDULE_FILE)
+        make_backup()
+    except (ValueError, OSError):
+        pass
+    _write_json_atomic(SCHEDULE_FILE, data)
+
+def valid_schedule(data):
+    return (isinstance(data, dict)
+            and isinstance(data.get('vhf'), list)
+            and isinstance(data.get('uhf'), list))
 
 # =====================
 # LOGIN
@@ -250,6 +335,23 @@ ADMIN_HTML = """
         <h2>Guide Scroll Speed</h2>
         <input type="number" id="scrollSpeed" step="0.05" min="0.1" max="2" style="width: 150px;">
         <button onclick="saveScrollSpeed()">Save Speed</button>
+    </div>
+
+    <!-- Backups -->
+    <div class="section">
+        <h2>Backups</h2>
+        <p style="color:#aaa; font-size:12px; line-height:1.6;">
+            Every save keeps a copy of the lineup from just before it (newest 30 kept).
+            Restoring also backs up the current lineup first, so a restore can be undone.
+        </p>
+        <button onclick="window.location='/api/schedule/download'">Download current lineup</button>
+
+        <h3>Restore from a file on your computer</h3>
+        <input type="file" id="restoreFile" accept=".json,application/json">
+        <button onclick="restoreFromFile()">Restore this file</button>
+
+        <h3>Saved versions</h3>
+        <div id="backupList"><p style="color:#888;">Loading…</p></div>
     </div>
 
     <script>
@@ -626,7 +728,7 @@ ADMIN_HTML = """
                     alert("Please enter a URL.");
                     return;
                 }
-                if (type === 'archive' && !/archive\.org\/(details|embed)\/[A-Za-z0-9._-]+/.test(url)) {
+                if (type === 'archive' && !/archive\\.org\\/(details|embed)\\/[A-Za-z0-9._-]+/.test(url)) {
                     alert("That doesn't look like an Archive.org video link. Copy the address from the video's archive.org page (it contains /details/).");
                     return;
                 }
@@ -708,6 +810,7 @@ ADMIN_HTML = """
                 alert(msg + ' Your change was NOT saved.');
                 throw new Error(msg);
             }
+            loadBackups();   // a new backup was just made
         }
 
         document.getElementById('addChannelForm').addEventListener('submit', async function(e) {
@@ -727,9 +830,94 @@ ADMIN_HTML = """
             await loadData();
         });
 
+        // ---------- Backups ----------
+        async function loadBackups() {
+            const box = document.getElementById('backupList');
+            let items;
+            try {
+                const res = await fetch('/api/backups');
+                if (!res.ok) throw new Error(res.status);
+                items = await res.json();
+            } catch (e) {
+                box.innerHTML = '<p style="color:#cc4444;">Could not load backups.</p>';
+                return;
+            }
+            box.innerHTML = '';
+            if (items.length === 0) {
+                box.innerHTML = '<p style="color:#888;">No backups yet. One is made the next time you save.</p>';
+                return;
+            }
+            items.forEach(b => {
+                const row = document.createElement('div');
+                row.className = 'media-item';
+                const label = document.createElement('span');
+                const when = new Date(b.saved_utc).toLocaleString();
+                label.textContent = when + (b.channels === null ? '  ⚠ damaged' : '  (' + b.channels + ' channels)');
+                const actions = document.createElement('div');
+
+                const dl = document.createElement('button');
+                dl.textContent = 'Download';
+                dl.onclick = () => { window.location = '/api/backups/' + encodeURIComponent(b.name); };
+                actions.appendChild(dl);
+
+                if (b.channels !== null) {
+                    const rs = document.createElement('button');
+                    rs.textContent = 'Restore';
+                    rs.style.marginLeft = '8px';
+                    rs.onclick = () => restoreBackup(b.name, when);
+                    actions.appendChild(rs);
+                }
+                row.appendChild(label);
+                row.appendChild(actions);
+                box.appendChild(row);
+            });
+        }
+
+        async function afterRestore(msg) {
+            alert(msg);
+            await loadData();
+            document.getElementById('bandSelect').value = '';
+            loadChannelsForBand();
+            loadBackups();
+        }
+
+        async function restoreBackup(name, when) {
+            if (!confirm('Replace the live lineup with the version from ' + when + '?\\n\\nThe current lineup is backed up first.')) return;
+            const res = await fetch('/api/backups/' + encodeURIComponent(name) + '/restore', {
+                method: 'POST', headers: { 'X-CSRF-Token': CSRF_TOKEN }
+            });
+            let body = {};
+            try { body = await res.json(); } catch (e) {}
+            if (!res.ok) { alert((body.error || 'Restore failed (' + res.status + ')') + ' Nothing was changed.'); return; }
+            await afterRestore('Restored. The site now shows that version.');
+        }
+
+        async function restoreFromFile() {
+            const input = document.getElementById('restoreFile');
+            if (!input.files.length) { alert('Choose a backup file first.'); return; }
+            let data;
+            try {
+                data = JSON.parse(await input.files[0].text());
+            } catch (e) {
+                alert("That file isn't valid JSON. Nothing was changed.");
+                return;
+            }
+            if (!data || !Array.isArray(data.vhf) || !Array.isArray(data.uhf)) {
+                alert("That file doesn't look like a Retro TV lineup (no VHF/UHF lists). Nothing was changed.");
+                return;
+            }
+            const count = data.vhf.length + data.uhf.length;
+            if (!confirm('Replace the live lineup with "' + input.files[0].name + '" (' + count + ' channels)?\\n\\nThe current lineup is backed up first.')) return;
+            scheduleData = data;
+            try { await saveData(); } catch (e) { await loadData(); return; }
+            input.value = '';
+            await afterRestore('Restored from file.');
+        }
+
         document.getElementById('mediaType').value = 'image';
         toggleMediaFields();
         loadData();
+        loadBackups();
     </script>
 </body>
 </html>
@@ -751,10 +939,65 @@ def update_schedule():
     if not isinstance(new_data, dict):
         return jsonify({"error": "No data provided"}), 400
     # Refuse anything that would wipe out the channel lists
-    if not isinstance(new_data.get('vhf'), list) or not isinstance(new_data.get('uhf'), list):
+    if not valid_schedule(new_data):
         return jsonify({"error": "Schedule must contain 'vhf' and 'uhf' channel lists"}), 400
     save_schedule(new_data)
     return jsonify({"message": "Saved successfully"})
+
+# ---------- Backups (admin only) ----------
+def _backup_path_or_404(name):
+    if not BACKUP_NAME_RE.match(name or ''):
+        abort(404)
+    path = os.path.join(backup_dir(), name)
+    if not os.path.isfile(path):
+        abort(404)
+    return path
+
+@app.route('/api/backups')
+@login_required
+def backups_list():
+    items = []
+    for name in list_backups():
+        path = os.path.join(backup_dir(), name)
+        try:
+            data = _read_json(path)
+            channels = len(data.get('vhf', [])) + len(data.get('uhf', []))
+        except (ValueError, OSError):
+            channels = None
+        items.append({
+            "name": name,
+            "saved_utc": datetime.fromtimestamp(os.path.getmtime(path), timezone.utc).isoformat(),
+            "channels": channels,
+        })
+    return jsonify(items)
+
+@app.route('/api/schedule/download')
+@login_required
+def download_current():
+    stamp = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+    return send_file(
+        io.BytesIO(json.dumps(load_schedule(), indent=2).encode()),
+        mimetype='application/json', as_attachment=True,
+        download_name=f'retro-tv-schedule-{stamp}.json')
+
+@app.route('/api/backups/<name>')
+@login_required
+def backup_download(name):
+    return send_file(_backup_path_or_404(name), mimetype='application/json',
+                     as_attachment=True, download_name=name)
+
+@app.route('/api/backups/<name>/restore', methods=['POST'])
+@login_required
+def backup_restore(name):
+    check_csrf(request.headers.get('X-CSRF-Token'))
+    try:
+        data = _read_json(_backup_path_or_404(name))
+    except (ValueError, OSError):
+        return jsonify({"error": "That backup is damaged and can't be restored"}), 400
+    if not valid_schedule(data):
+        return jsonify({"error": "That backup doesn't contain a valid lineup"}), 400
+    save_schedule(data)   # the current lineup is backed up first, so a restore can be undone
+    return jsonify({"message": f"Restored {name}"})
 
 @app.route('/admin')
 @login_required

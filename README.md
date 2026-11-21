@@ -15,6 +15,12 @@ Live at **https://warrencbennett.com**
 - Merging to `main` redeploys Render automatically, and a GitHub Action uploads `index.html` to Neocities.
 - The channel lineup is **not** stored in this repo. Edit channels at `https://retro-tv-website.onrender.com/admin`.
 
+## Backups
+
+- **On Render:** every save keeps a copy of the previous lineup in `/data/backups/` (newest 30). Restore or download them from the **Backups** section in `/admin`.
+- **Off-site:** a GitHub Action saves the live lineup nightly to the `schedule-backups` branch. Its history is a dated record of every change. To use one, download `schedule.json` from that branch (History → pick a date) and use **Restore from a file** in `/admin`.
+- **Crash-safe:** saves are written to a temp file and swapped in, and if the live file is ever damaged the site serves the newest good backup.
+
 ## schedule.sample.json
 
 An example of the schedule format, kept for reference only. **The live site never reads it.** Changing it does nothing to the site.
