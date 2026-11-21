@@ -620,15 +620,42 @@
             return `${dayName} • ${monthName} ${date}, ${year} • ${hours}:${minutes} ${ampm}`;
         }
 
+        let scheduleLoaded = false;
+        const RETRY_SECONDS = 30;
+
+        // Returns true once the lineup is loaded, false if the backend couldn't be reached
         async function loadSchedule() {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort(), 20000);  // give up on a hung request
             try {
-                const res = await fetch(SCHEDULE_API);
+                const res = await fetch(SCHEDULE_API, { signal: controller.signal });
                 if (!res.ok) throw new Error(`HTTP ${res.status}`);
-                scheduleData = await res.json();
+                const data = await res.json();
+                if (!data || !Array.isArray(data.vhf) || !Array.isArray(data.uhf)) throw new Error('Bad schedule data');
+                scheduleData = data;
+                return true;
             } catch (err) {
                 console.error("Failed to load schedule from backend.", err);
-                scheduleData = { vhf: [], uhf: [] };
+                return false;
+            } finally {
+                clearTimeout(timer);
             }
+        }
+
+        // Big text on the static screen (NO SIGNAL, TUNING..., SIGNAL LOST)
+        function setScreenMessage(main, sub) {
+            const tx = document.getElementById('noSignalText');
+            if (!tx) return;
+            tx.innerHTML = `${escapeHtml(main)}<br><span style="font-size:12px;">${escapeHtml(sub)}</span>`;
+        }
+
+        function showStaticMessage(main, sub) {
+            setScreenMessage(main, sub);
+            startStaticEffect();
+            const tx = document.getElementById('noSignalText');
+            if (tx) tx.style.display = 'block';
+            const screen = document.querySelector('.screen');
+            if (screen) screen.classList.add('no-signal-active');
         }
 
         function rotateKnob(knobId, currentRotation, amount) {
@@ -642,6 +669,7 @@
         }
 
         function nextVHF() {
+            if (!scheduleLoaded) { vhfRotation = rotateKnob('vhfKnob', vhfRotation, 45); return; }
             stopGuideScroll();
             if (lastMode !== 'vhf') {
                 vhfIndex = 0;
@@ -655,6 +683,7 @@
         }
 
         function nextUHF() {
+            if (!scheduleLoaded) { uhfRotation = rotateKnob('uhfKnob', uhfRotation, 45); return; }
             stopGuideScroll();
             if (lastMode !== 'uhf') {
                 uhfIndex = 0;
@@ -1009,6 +1038,7 @@ function updateDisplay() {
     }
 
     if (isEmptyChannel) {
+        setScreenMessage('NO SIGNAL', 'CHANNEL OFF AIR');
         startStaticEffect();
         if (tx) tx.style.display = 'block';
         if (screen) screen.classList.add('no-signal-active');
@@ -1077,7 +1107,20 @@ function updateDisplay() {
         }
 
         async function init() {
-            await loadSchedule();
+            showStaticMessage('TUNING...', 'PLEASE STAND BY');
+            while (!(await loadSchedule())) {
+                // Backend unreachable: keep the static up and quietly try again
+                for (let s = RETRY_SECONDS; s > 0; s--) {
+                    showStaticMessage('SIGNAL LOST', `RETRYING IN ${s}...`);
+                    await new Promise(r => setTimeout(r, 1000));
+                }
+                showStaticMessage('TUNING...', 'PLEASE STAND BY');
+            }
+            scheduleLoaded = true;
+            stopStaticEffect();
+            document.getElementById('noSignalText').style.display = 'none';
+            document.querySelector('.screen').classList.remove('no-signal-active');
+
             generateContent();
             showVHFGuide();
             lastMode = 'vhf';
