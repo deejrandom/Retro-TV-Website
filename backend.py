@@ -186,6 +186,7 @@ ADMIN_HTML = """
             <div id="normalFields">
                 <input type="text" id="mediaTitle" placeholder="Title">
                 <input type="text" id="mediaUrl" placeholder="URL or Link">
+                <input type="text" id="mediaLink" placeholder="Link (where the card goes when clicked)" style="display:none;">
             </div>
 
             <div id="textFields" class="text-fields">
@@ -229,15 +230,19 @@ ADMIN_HTML = """
                 div.className = 'media-item';
 
                 const label = document.createElement('span');
-                label.textContent = m.type === 'text'
-                    ? 'Text: ' + (m.title || 'Untitled')
-                    : (m.title || m.type);
+                if (m.type === 'text') {
+                    label.textContent = 'Text: ' + (m.title || 'Untitled');
+                } else if (m.type === 'linkcard') {
+                    label.textContent = 'Linkcard: ' + (m.title || 'Untitled') + (m.link ? '' : '  ⚠ no link');
+                } else {
+                    label.textContent = m.title || m.type;
+                }
 
                 const actions = document.createElement('div');
-                if (m.type === 'text') {
+                if (m.type === 'text' || m.type === 'linkcard') {
                     const editBtn = document.createElement('button');
                     editBtn.textContent = 'Edit';
-                    editBtn.onclick = () => editTextBlock(mIndex);
+                    editBtn.onclick = () => (m.type === 'text' ? editTextBlock(mIndex) : editLinkcard(mIndex));
                     actions.appendChild(editBtn);
                 }
 
@@ -249,10 +254,63 @@ ADMIN_HTML = """
                 actions.appendChild(deleteBtn);
 
                 div.appendChild(label);
-                if (m.type === 'text') div.appendChild(actions);
-                else div.appendChild(deleteBtn);
+                div.appendChild(actions);
                 container.appendChild(div);
             });
+        }
+
+        function editLinkcard(mediaIndex) {
+            const item = scheduleData[currentBand][currentIndex].media[mediaIndex];
+            const container = document.getElementById('mediaList');
+            container.innerHTML = '';
+
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'background:#1f2a1f; padding:15px; border:2px solid #39ff14;';
+
+            const heading = document.createElement('h4');
+            heading.textContent = 'Edit Linkcard';
+            wrapper.appendChild(heading);
+
+            // Old linkcards stored the destination in "url" with no "link".
+            // Pre-fill so nothing is lost: put that old value in the Link box.
+            const hasLink = !!item.link;
+            const fields = [
+                ['Title', 'editLcTitle', item.title || ''],
+                ['Image URL (optional)', 'editLcUrl', hasLink ? (item.url || '') : ''],
+                ['Link (where the card goes)', 'editLcLink', hasLink ? item.link : (item.url || '')]
+            ];
+            fields.forEach(([labelText, id, value]) => {
+                const lbl = document.createElement('label');
+                lbl.textContent = labelText;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = id;
+                input.value = value;
+                wrapper.appendChild(lbl);
+                wrapper.appendChild(input);
+            });
+
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Save Changes';
+            saveBtn.onclick = async () => {
+                const link = document.getElementById('editLcLink').value.trim();
+                if (!link) { alert("Please enter the link the card should go to."); return; }
+                item.title = document.getElementById('editLcTitle').value.trim();
+                item.url = document.getElementById('editLcUrl').value.trim();
+                item.link = link;
+                await saveData();
+                renderMediaList();
+            };
+            wrapper.appendChild(saveBtn);
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.style.background = '#555';
+            cancelBtn.style.marginLeft = '10px';
+            cancelBtn.onclick = () => renderMediaList();
+            wrapper.appendChild(cancelBtn);
+
+            container.appendChild(wrapper);
         }
 
         function editTextBlock(mediaIndex) {
@@ -369,6 +427,9 @@ ADMIN_HTML = """
         function toggleMediaFields() {
             const type = document.getElementById('mediaType').value;
             document.getElementById('normalFields').style.display = (type === 'text') ? 'none' : 'block';
+            const isLinkcard = (type === 'linkcard');
+            document.getElementById('mediaLink').style.display = isLinkcard ? 'block' : 'none';
+            document.getElementById('mediaUrl').placeholder = isLinkcard ? 'Image URL (optional)' : 'URL or Link';
             document.getElementById('textFields').style.display = (type === 'text') ? 'block' : 'none';
         }
 
@@ -390,6 +451,20 @@ ADMIN_HTML = """
                 ch.media.push({ type: "text", title, content });
                 document.getElementById('textTitle').value = '';
                 document.getElementById('textContent').value = '';
+            } else if (type === 'linkcard') {
+                const title = document.getElementById('mediaTitle').value.trim();
+                const url = document.getElementById('mediaUrl').value.trim();
+                const link = document.getElementById('mediaLink').value.trim();
+
+                if (!link) {
+                    alert("Please enter the link the card should go to.");
+                    return;
+                }
+
+                ch.media.push({ type, title, url, link });
+                document.getElementById('mediaTitle').value = '';
+                document.getElementById('mediaUrl').value = '';
+                document.getElementById('mediaLink').value = '';
             } else {
                 const title = document.getElementById('mediaTitle').value.trim();
                 const url = document.getElementById('mediaUrl').value.trim();
