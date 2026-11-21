@@ -754,10 +754,14 @@ function startAutoScrollTextBlocks() {
                     if (ch.media && ch.media.length > 0) {
                         const sortedMedia = [...ch.media].reverse();
                         sortedMedia.forEach(m => {
-                            const link = escapeAttr(m.link || '#');
+                            // New cards: url = image, link = destination.
+                            // Old cards (no link): url was the destination, so use it as the link and skip the image.
+                            const href = m.link || m.url || '#';
+                            const imgSrc = m.link ? m.url : '';
+                            const link = escapeAttr(href);
                             contentHTML += `
                                 <a href="${link}" target="_blank" rel="noopener noreferrer" class="link-card">
-                                    ${m.url ? `<img src="${escapeAttr(m.url)}" alt="">` : ''}
+                                    ${imgSrc ? `<img src="${escapeAttr(imgSrc)}" alt="">` : ''}
                                     <div class="link-card-title">${escapeHtml(m.title || '')}</div>
                                 </a>
                             `;
