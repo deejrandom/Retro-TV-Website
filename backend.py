@@ -216,6 +216,7 @@ ADMIN_HTML = """
             <select id="mediaType" onchange="toggleMediaFields()">
                 <option value="image">Image</option>
                 <option value="youtube">YouTube / Video</option>
+                <option value="archive">Archive.org Video</option>
                 <option value="text">Text Block</option>
                 <option value="linkcard">Linkcard</option>
             </select>
@@ -277,6 +278,8 @@ ADMIN_HTML = """
                     label.textContent = 'Text: ' + (m.title || 'Untitled');
                 } else if (m.type === 'linkcard') {
                     label.textContent = 'Linkcard: ' + (m.title || 'Untitled') + (m.link ? '' : '  ⚠ no link');
+                } else if (m.type === 'archive') {
+                    label.textContent = 'Archive.org: ' + (m.title || m.url);
                 } else if (m.type === 'image') {
                     label.textContent = 'Image: ' + (m.title || 'Untitled')
                         + '  [' + (m.gallery_group || 'Uncategorized') + ']'
@@ -576,7 +579,9 @@ ADMIN_HTML = """
             document.getElementById('normalFields').style.display = (type === 'text') ? 'none' : 'block';
             const isLinkcard = (type === 'linkcard');
             document.getElementById('mediaLink').style.display = isLinkcard ? 'block' : 'none';
-            document.getElementById('mediaUrl').placeholder = isLinkcard ? 'Image URL (optional)' : 'URL or Link';
+            document.getElementById('mediaUrl').placeholder = isLinkcard ? 'Image URL (optional)'
+                : (type === 'archive') ? 'Archive.org link, e.g. https://archive.org/details/double-indemnity-1944-restored-movie-720p-hd'
+                : 'URL or Link';
             document.getElementById('imageFields').style.display = (type === 'image') ? 'block' : 'none';
             document.getElementById('textFields').style.display = (type === 'text') ? 'block' : 'none';
         }
@@ -619,6 +624,10 @@ ADMIN_HTML = """
 
                 if (!url) {
                     alert("Please enter a URL.");
+                    return;
+                }
+                if (type === 'archive' && !/archive\.org\/(details|embed)\/[A-Za-z0-9._-]+/.test(url)) {
+                    alert("That doesn't look like an Archive.org video link. Copy the address from the video's archive.org page (it contains /details/).");
                     return;
                 }
 
