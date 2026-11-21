@@ -1,1 +1,4 @@
 /Back Up Files
+
+__pycache__/
+*.pyc
