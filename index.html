@@ -167,15 +167,29 @@
     color: #aaffaa;
     line-height: 1.75;
     margin: 0 0 15px 0;
-    padding: 55px 0 15px 0;     /* Top padding pushes content below the channel title */
-    background: none;
-    border: none;
-    overflow: hidden;
+    padding: 4px 0 0 0;
     height: 580px;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Title stays put above the scrolling text */
+.text-title {
+    font-weight: bold;
+    color: #aaffaa;
+    margin-bottom: 10px;
+    flex: none;
+}
+
+/* The window the text scrolls inside; anything outside it is hidden */
+.text-window {
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
     position: relative;
 }
 
-/* New inner wrapper that actually scrolls */
+/* Inner wrapper that actually moves */
 .text-content {
     position: relative;
     will-change: transform;
@@ -579,6 +593,7 @@
                 .replace(/^- (.+)$/gm, '<li style="margin-left:18px; margin-bottom:4px; list-style-type: disc;">$1</li>')
                 .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.+?)\*/g, '<em>$1</em>')
+                .replace(/(<\/li>|<\/h3>)\n/g, '$1')   // no extra blank line after bullets/headings
                 .replace(/\n/g, '<br>');
             html = html.replace(/(<li.*?<\/li>)+/g, match => '<ul style="margin:8px 0 12px; padding-left:6px;">' + match + '</ul>');
             return html;
@@ -704,37 +719,61 @@
         }
 
 // =====================
-// SMOOTH TEXT SCROLLING (Stops below title + loops from bottom)
+// SMOOTH TEXT SCROLLING
+// Text sits at the top for a moment, scrolls up inside its window,
+// and once it's gone rolls back in from the bottom, like a TV-guide crawl.
+// Speed is per second, so it's the same on 60Hz and 144Hz screens.
 // =====================
+
+// guide_scroll_speed was tuned as "pixels per frame at 60fps"; keep that meaning
+function scrollPixelsPerSecond() {
+    return (scheduleData.guide_scroll_speed || 0.36) * 60;
+}
+
+let textScrollToken = 0;
+
 function startAutoScrollTextBlocks() {
     if (textScrollRAF) cancelAnimationFrame(textScrollRAF);
+    textScrollRAF = null;
+    const token = ++textScrollToken;
 
-    const textBlock = document.querySelector('.section.active .text-block');
-    const textContent = document.querySelector('.section.active .text-content');
-    
-    if (!textBlock || !textContent) return;
+    const windows = [...document.querySelectorAll('.section.active .text-window')];
+    if (windows.length === 0) return;
 
     setTimeout(() => {
-        const contentHeight = textContent.scrollHeight;
-        const visibleHeight = textBlock.clientHeight;
+        if (token !== textScrollToken) return;   // channel changed meanwhile
 
-        if (contentHeight <= visibleHeight + 30) return;
+        const scrollers = windows.map(win => {
+            const content = win.querySelector('.text-content');
+            content.style.transform = 'translateY(0px)';
+            return { win, content, position: 0 };
+        }).filter(sc => sc.content.scrollHeight > sc.win.clientHeight + 10);  // only text that doesn't fit
 
-        let position = 0;
-        const scrollSpeed = scheduleData.guide_scroll_speed || 0.36;
+        if (scrollers.length === 0) return;
 
-        function scroll() {
-            position -= scrollSpeed;
+        const HOLD_MS = 2500;   // let people start reading before it moves
+        let startTime = null;
+        let lastTime = null;
 
-            if (position <= -contentHeight) {
-                position = 0; // Come back from the bottom
+        function step(now) {
+            if (token !== textScrollToken) return;
+            if (startTime === null) { startTime = now; lastTime = now; }
+            const dt = Math.min((now - lastTime) / 1000, 0.1);  // seconds; capped so a background tab doesn't jump
+            lastTime = now;
+
+            if (now - startTime > HOLD_MS) {
+                const move = scrollPixelsPerSecond() * dt;
+                scrollers.forEach(sc => {
+                    sc.position -= move;
+                    if (sc.position <= -sc.content.scrollHeight) {
+                        sc.position = sc.win.clientHeight;   // re-enter from the bottom
+                    }
+                    sc.content.style.transform = `translateY(${sc.position}px)`;
+                });
             }
-
-            textContent.style.transform = `translateY(${position}px)`;
-            textScrollRAF = requestAnimationFrame(scroll);
+            textScrollRAF = requestAnimationFrame(step);
         }
-
-        textScrollRAF = requestAnimationFrame(scroll);
+        textScrollRAF = requestAnimationFrame(step);
     }, 150);
 }
 
@@ -840,12 +879,11 @@ function startAutoScrollTextBlocks() {
                         } else if (m.type === 'text') {
                             contentHTML += `
                             <div class="text-block">
-                             <strong>${escapeHtml(m.title || '')}</strong><br><br>
-                             <div class="text-content">
-                            ${formatText(m.content)}
-        </div>
-    </div>
-`;
+                                ${m.title ? `<div class="text-title">${escapeHtml(m.title)}</div>` : ''}
+                                <div class="text-window">
+                                    <div class="text-content">${formatText(m.content)}</div>
+                                </div>
+                            </div>`;
                         }
                     });
                 }
@@ -1016,10 +1054,13 @@ function updateDisplay() {
                 if (singleCopyHeight < 30) return;
 
                 let position = 0;
-                const scrollSpeed = scheduleData.guide_scroll_speed || 0.36;
+                let lastTime = null;
 
-                function scroll() {
-                    position -= scrollSpeed;
+                function scroll(now) {
+                    if (lastTime === null) lastTime = now;
+                    const dt = Math.min((now - lastTime) / 1000, 0.1);
+                    lastTime = now;
+                    position -= scrollPixelsPerSecond() * dt;
                     if (position <= -singleCopyHeight) position += singleCopyHeight;
                     wrapper.style.transform = `translateY(${position}px)`;
                     guideScrollRAF = requestAnimationFrame(scroll);
