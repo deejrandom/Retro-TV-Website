@@ -1,0 +1,45 @@
+# Uploads the front end (index.html) to Neocities (warrencbennett.com)
+# whenever it changes on main. The backend (backend.py etc.) is deployed
+# separately by Render and is never sent to Neocities.
+#
+# Needs the repository secret NEOCITIES_API_TOKEN (Neocities site settings -> API).
+# You can also run it by hand: Actions tab -> "Deploy to Neocities" -> Run workflow.
+
+name: Deploy to Neocities
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - .github/workflows/deploy-neocities.yml
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-to-neocities
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Collect only the site files
+        run: |
+          mkdir -p neocities-upload
+          cp index.html neocities-upload/
+
+      - name: Upload to Neocities
+        # bcomnes/deploy-to-neocities v3.0.6, pinned to an exact commit
+        uses: bcomnes/deploy-to-neocities@44e42387b3267e31432ca34b01f013b94956f2f2
+        with:
+          api_key: ${{ secrets.NEOCITIES_API_TOKEN }}
+          dist_dir: neocities-upload
+          # Never delete anything on Neocities, so files you uploaded by hand stay put
+          cleanup: false
+          neocities_supporter: false
