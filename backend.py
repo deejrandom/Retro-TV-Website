@@ -156,6 +156,9 @@ ADMIN_HTML = """
             <label>Schedule Description</label>
             <input type="text" id="editSchedule">
 
+            <label>Channel Description (shown at the top of the channel; optional)</label>
+            <textarea id="editDescription" rows="4"></textarea>
+
             <label>Presentation Style</label>
             <select id="editPresentation">
                 <option value="single">Single Content</option>
@@ -187,6 +190,11 @@ ADMIN_HTML = """
                 <input type="text" id="mediaTitle" placeholder="Title">
                 <input type="text" id="mediaUrl" placeholder="URL or Link">
                 <input type="text" id="mediaLink" placeholder="Link (where the card goes when clicked)" style="display:none;">
+                <div id="imageFields">
+                    <input type="text" id="mediaGroup" placeholder="Gallery Group (e.g. Final Fantasy) — blank = Uncategorized" list="groupOptions">
+                    <datalist id="groupOptions"></datalist>
+                    <label><input type="checkbox" id="mediaCover" style="width:auto;"> Use as the cover image for this group</label>
+                </div>
             </div>
 
             <div id="textFields" class="text-fields">
@@ -218,6 +226,7 @@ ADMIN_HTML = """
             const container = document.getElementById('mediaList');
             if (!container) return;
             container.innerHTML = '';
+            refreshGroupOptions();
 
             const ch = scheduleData[currentBand][currentIndex];
             if (!ch || !ch.media || ch.media.length === 0) {
@@ -234,15 +243,23 @@ ADMIN_HTML = """
                     label.textContent = 'Text: ' + (m.title || 'Untitled');
                 } else if (m.type === 'linkcard') {
                     label.textContent = 'Linkcard: ' + (m.title || 'Untitled') + (m.link ? '' : '  ⚠ no link');
+                } else if (m.type === 'image') {
+                    label.textContent = 'Image: ' + (m.title || 'Untitled')
+                        + '  [' + (m.gallery_group || 'Uncategorized') + ']'
+                        + (m.is_group_cover ? '  ★ cover' : '');
                 } else {
                     label.textContent = m.title || m.type;
                 }
 
                 const actions = document.createElement('div');
-                if (m.type === 'text' || m.type === 'linkcard') {
+                if (m.type === 'text' || m.type === 'linkcard' || m.type === 'image') {
                     const editBtn = document.createElement('button');
                     editBtn.textContent = 'Edit';
-                    editBtn.onclick = () => (m.type === 'text' ? editTextBlock(mIndex) : editLinkcard(mIndex));
+                    editBtn.onclick = () => {
+                        if (m.type === 'text') editTextBlock(mIndex);
+                        else if (m.type === 'linkcard') editLinkcard(mIndex);
+                        else editImage(mIndex);
+                    };
                     actions.appendChild(editBtn);
                 }
 
@@ -257,6 +274,101 @@ ADMIN_HTML = """
                 div.appendChild(actions);
                 container.appendChild(div);
             });
+        }
+
+        // Only one cover per group: clear the flag on every other image in that group
+        function setGroupCover(ch, group) {
+            (ch.media || []).forEach(m => {
+                if (m.type === 'image' && (m.gallery_group || '') === (group || '')) {
+                    delete m.is_group_cover;
+                }
+            });
+        }
+
+        // Fill the Gallery Group suggestions with groups already used in this channel
+        function refreshGroupOptions() {
+            const list = document.getElementById('groupOptions');
+            if (!list) return;
+            list.innerHTML = '';
+            const ch = scheduleData[currentBand] && scheduleData[currentBand][currentIndex];
+            const groups = new Set((ch && ch.media || [])
+                .filter(m => m.type === 'image' && m.gallery_group)
+                .map(m => m.gallery_group));
+            groups.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g;
+                list.appendChild(opt);
+            });
+        }
+
+        function editImage(mediaIndex) {
+            const ch = scheduleData[currentBand][currentIndex];
+            const item = ch.media[mediaIndex];
+            const container = document.getElementById('mediaList');
+            container.innerHTML = '';
+
+            const wrapper = document.createElement('div');
+            wrapper.style.cssText = 'background:#1f2a1f; padding:15px; border:2px solid #39ff14;';
+
+            const heading = document.createElement('h4');
+            heading.textContent = 'Edit Image';
+            wrapper.appendChild(heading);
+
+            [['Title', 'editImgTitle', item.title || ''],
+             ['Image URL', 'editImgUrl', item.url || ''],
+             ['Gallery Group (blank = Uncategorized)', 'editImgGroup', item.gallery_group || '']
+            ].forEach(([labelText, id, value]) => {
+                const lbl = document.createElement('label');
+                lbl.textContent = labelText;
+                const input = document.createElement('input');
+                input.type = 'text';
+                input.id = id;
+                input.value = value;
+                if (id === 'editImgGroup') input.setAttribute('list', 'groupOptions');
+                wrapper.appendChild(lbl);
+                wrapper.appendChild(input);
+            });
+
+            const coverLabel = document.createElement('label');
+            const coverBox = document.createElement('input');
+            coverBox.type = 'checkbox';
+            coverBox.id = 'editImgCover';
+            coverBox.style.width = 'auto';
+            coverBox.checked = !!item.is_group_cover;
+            coverLabel.appendChild(coverBox);
+            coverLabel.appendChild(document.createTextNode(' Use as the cover image for this group'));
+            wrapper.appendChild(document.createElement('br'));
+            wrapper.appendChild(coverLabel);
+            wrapper.appendChild(document.createElement('br'));
+
+            const saveBtn = document.createElement('button');
+            saveBtn.textContent = 'Save Changes';
+            saveBtn.onclick = async () => {
+                const url = document.getElementById('editImgUrl').value.trim();
+                if (!url) { alert("Please enter an image URL."); return; }
+                const group = document.getElementById('editImgGroup').value.trim();
+                item.title = document.getElementById('editImgTitle').value.trim();
+                item.url = url;
+                if (group) item.gallery_group = group; else delete item.gallery_group;
+                if (document.getElementById('editImgCover').checked) {
+                    setGroupCover(ch, group);
+                    item.is_group_cover = true;
+                } else {
+                    delete item.is_group_cover;
+                }
+                await saveData();
+                renderMediaList();
+            };
+            wrapper.appendChild(saveBtn);
+
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.style.background = '#555';
+            cancelBtn.style.marginLeft = '10px';
+            cancelBtn.onclick = () => renderMediaList();
+            wrapper.appendChild(cancelBtn);
+
+            container.appendChild(wrapper);
         }
 
         function editLinkcard(mediaIndex) {
@@ -419,6 +531,7 @@ ADMIN_HTML = """
             document.getElementById('editSchedule').value = ch.schedule || '';
             document.getElementById('editPresentation').value = ch.presentation || 'single';
             document.getElementById('editNow').checked = ch.now || false;
+            document.getElementById('editDescription').value = ch.description || '';
 
             renderMediaList();
             editSection.style.display = 'block';
@@ -430,6 +543,7 @@ ADMIN_HTML = """
             const isLinkcard = (type === 'linkcard');
             document.getElementById('mediaLink').style.display = isLinkcard ? 'block' : 'none';
             document.getElementById('mediaUrl').placeholder = isLinkcard ? 'Image URL (optional)' : 'URL or Link';
+            document.getElementById('imageFields').style.display = (type === 'image') ? 'block' : 'none';
             document.getElementById('textFields').style.display = (type === 'text') ? 'block' : 'none';
         }
 
@@ -474,7 +588,19 @@ ADMIN_HTML = """
                     return;
                 }
 
-                ch.media.push({ type, title, url });
+                const item = { type, title, url };
+                if (type === 'image') {
+                    const group = document.getElementById('mediaGroup').value.trim();
+                    const isCover = document.getElementById('mediaCover').checked;
+                    if (group) item.gallery_group = group;
+                    if (isCover) {
+                        setGroupCover(ch, group);
+                        item.is_group_cover = true;
+                    }
+                    // Group box is left filled in so you can add several images to the same group in a row
+                    document.getElementById('mediaCover').checked = false;
+                }
+                ch.media.push(item);
                 document.getElementById('mediaTitle').value = '';
                 document.getElementById('mediaUrl').value = '';
             }
@@ -496,6 +622,8 @@ ADMIN_HTML = """
             ch.schedule = document.getElementById('editSchedule').value;
             ch.presentation = document.getElementById('editPresentation').value;
             ch.now = document.getElementById('editNow').checked;
+            const desc = document.getElementById('editDescription').value.trim();
+            if (desc) ch.description = desc; else delete ch.description;
 
             await saveData();
             alert('Channel saved!');
