@@ -652,6 +652,13 @@
             updateDisplay();
         }
 
+        // Gallery groups are kept here and opened by number, so titles with
+        // apostrophes or quotes can't break the click handler.
+        let galleryGroupStore = [];
+        function openGalleryGroup(i) {
+            if (galleryGroupStore[i]) openLightbox(galleryGroupStore[i], 0);
+        }
+
         function openLightbox(images, startIndex = 0) {
             currentGalleryImages = images;
             currentLightboxIndex = startIndex;
@@ -729,6 +736,7 @@ function startAutoScrollTextBlocks() {
         function generateContent() {
             const container = document.querySelector('.content');
             container.innerHTML = '';
+            galleryGroupStore = []; // reset each time the channels are rebuilt
 
             function createChannelElement(ch, band, index) {
                 const div = document.createElement('div');
@@ -786,7 +794,7 @@ function startAutoScrollTextBlocks() {
                             const groupImages = groups[groupName];
                             let cover = groupImages.find(m => m.is_group_cover === true) || groupImages[0];
                             gridHTML += `
-                                <div class="gallery-group-card" onclick='openLightbox(${JSON.stringify(groupImages)}, 0)'>
+                                <div class="gallery-group-card" onclick="openGalleryGroup(${galleryGroupStore.push(groupImages) - 1})">
                                     <img src="${escapeAttr(cover.url)}" alt="${escapeAttr(groupName)}">
                                     <div class="group-name">${escapeHtml(groupName)}</div>
                                 </div>
