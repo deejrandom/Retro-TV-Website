@@ -204,11 +204,35 @@
             margin-bottom: 10px;
         }
 
-        .video-container iframe {
+        .video-container iframe,
+        .video-container video {
             width: 100%;
             height: 100%;
             display: block;
             border: none;
+            background: #000;
+        }
+
+        /* Live-broadcast players: like a real TV, you can't click to pause */
+        .player-slot iframe { pointer-events: none; }
+        .player-slot video { object-fit: contain; }
+
+        /* Hidden while the set "locks on" to the broadcast; static shows through */
+        .player-slot.locking { visibility: hidden; }
+
+        /* On-screen display for volume etc. */
+        #osd {
+            position: absolute;
+            top: 14px;
+            right: 18px;
+            z-index: 8;
+            font-family: 'VT323', 'Courier New', monospace;
+            font-size: 28px;
+            color: #39ff14;
+            text-shadow: 0 0 8px #39ff14;
+            letter-spacing: 2px;
+            pointer-events: none;
+            display: none;
         }
 
         .channel-description {
@@ -454,6 +478,7 @@
     <div class="screen">
         <div class="content"></div>
         <canvas id="staticCanvas"></canvas>
+        <div id="osd"></div>
         <div class="no-signal-text" id="noSignalText">NO SIGNAL<br><span style="font-size:12px;">CHANNEL OFF AIR</span></div>
     </div>
        
@@ -465,6 +490,10 @@
             <div>
                 <div class="knob" id="uhfKnob"></div>
                 <div class="knob-label">UHF</div>
+            </div>
+            <div>
+                <div class="knob" id="volKnob" title="Volume"></div>
+                <div class="knob-label">VOL</div>
             </div>
         </div>
     </div>
@@ -709,9 +738,228 @@
             return /^[A-Za-z0-9._-]+$/.test(id) ? id : '';
         }
 
-        function archiveEmbedHTML(id, title) {
-            return `<div class="video-container"><iframe src="https://archive.org/embed/${id}" title="${escapeAttr(title || id)}" allowfullscreen></iframe></div>`;
+        // =====================
+        // LIVE BROADCAST
+        // Videos only exist while their channel is on screen. Each one plays from
+        // a shared "broadcast clock", so tuning in drops you into the middle of
+        // the show, the same spot for every visitor, like real cable.
+        // =====================
+        const BROADCAST_EPOCH = Date.UTC(2026, 0, 1);   // the "network" signed on Jan 1, 2026
+        const VOLUME_STEPS = [0, 30, 65, 100];           // OFF, 1, 2, 3
+        let volumeLevel = 2;
+        try {
+            const saved = parseInt(localStorage.getItem('rtv_volume'), 10);
+            if (saved >= 0 && saved < VOLUME_STEPS.length) volumeLevel = saved;
+        } catch (e) {}
+
+        let mountedPlayers = [];
+        let mountToken = 0;
+        let ytApiPromise = null;
+        let osdTimer = null;
+
+        function broadcastOffset(durationSeconds) {
+            if (!durationSeconds || !isFinite(durationSeconds) || durationSeconds <= 1) return 0;
+            return ((Date.now() - BROADCAST_EPOCH) / 1000) % durationSeconds;
         }
+
+        function isArchiveFileUrl(url) {
+            return typeof url === 'string' && /^https:\/\/archive\.org\/download\/[A-Za-z0-9._-]+\/.+/.test(url);
+        }
+
+        function showOSD(text, ms = 1600) {
+            const osd = document.getElementById('osd');
+            if (!osd) return;
+            osd.textContent = text;
+            osd.style.display = 'block';
+            clearTimeout(osdTimer);
+            osdTimer = setTimeout(() => { osd.style.display = 'none'; }, ms);
+        }
+
+        function volumeBars() {
+            return volumeLevel === 0 ? 'MUTE' : '▮'.repeat(volumeLevel) + '▯'.repeat(VOLUME_STEPS.length - 1 - volumeLevel);
+        }
+
+        function loadYouTubeAPI() {
+            if (window.YT && window.YT.Player) return Promise.resolve(true);
+            if (!ytApiPromise) {
+                ytApiPromise = new Promise(resolve => {
+                    const prev = window.onYouTubeIframeAPIReady;
+                    window.onYouTubeIframeAPIReady = () => { if (prev) prev(); resolve(true); };
+                    const tag = document.createElement('script');
+                    tag.src = 'https://www.youtube.com/iframe_api';
+                    tag.onerror = () => { ytApiPromise = null; resolve(false); };
+                    document.head.appendChild(tag);
+                    setTimeout(() => resolve(!!(window.YT && window.YT.Player)), 10000);
+                });
+            }
+            return ytApiPromise;
+        }
+
+        // Static on screen while the set locks on; reveal when synced (or give up waiting)
+        function beginLocking(slot) {
+            slot.classList.add('locking');
+            startStaticEffect();
+            let done = false;
+            const reveal = () => {
+                if (done) return;
+                done = true;
+                slot.classList.remove('locking');
+                if (!document.querySelector('.player-slot.locking')) stopStaticEffect();
+            };
+            setTimeout(reveal, 6000);
+            return reveal;
+        }
+
+        function mountPlayers(section) {
+            const token = ++mountToken;
+            if (!section) return;
+            section.querySelectorAll('.player-slot').forEach(slot => {
+                if (slot.dataset.kind === 'youtube') mountYouTube(slot, token);
+                else if (slot.dataset.kind === 'archive') mountArchive(slot, token);
+            });
+        }
+
+        function unmountPlayers() {
+            mountToken++;
+            mountedPlayers.forEach(p => { try { p.destroy(); } catch (e) {} });
+            mountedPlayers = [];
+            document.querySelectorAll('.player-slot').forEach(slot => {
+                slot.innerHTML = '';
+                slot.classList.remove('locking');
+            });
+        }
+
+        function setAllVolumes() {
+            mountedPlayers.forEach(p => { try { p.setVolume(); } catch (e) {} });
+        }
+
+        // ---- YouTube ----
+        async function mountYouTube(slot, token) {
+            const id = slot.dataset.id;
+            const reveal = beginLocking(slot);
+            const apiOK = await loadYouTubeAPI();
+            if (token !== mountToken) return;   // channel changed while loading
+
+            if (!apiOK) {
+                // YouTube's API didn't load: fall back to a plain looping embed (no sync)
+                slot.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&playsinline=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                mountedPlayers.push({ destroy() { slot.innerHTML = ''; }, setVolume() {} });
+                reveal();
+                return;
+            }
+
+            const holder = document.createElement('div');
+            slot.appendChild(holder);
+            let phase = 'start';   // start -> seeking -> live
+            const applyVolume = (pl) => {
+                if (volumeLevel === 0) pl.mute();
+                else { pl.unMute(); pl.setVolume(VOLUME_STEPS[volumeLevel]); }
+            };
+            const player = new YT.Player(holder, {
+                videoId: id,
+                width: '100%',
+                height: '100%',
+                playerVars: { autoplay: 1, mute: 1, controls: 0, playsinline: 1, rel: 0, disablekb: 1, iv_load_policy: 3, fs: 0 },
+                events: {
+                    onReady: e => {
+                        if (token !== mountToken) return;
+                        e.target.playVideo();
+                    },
+                    onStateChange: e => {
+                        if (token !== mountToken) return;
+                        const S = YT.PlayerState;
+                        if (e.data === S.PLAYING && phase === 'start') {
+                            phase = 'seeking';
+                            e.target.seekTo(broadcastOffset(e.target.getDuration()), true);
+                            applyVolume(e.target);
+                            // If the browser refused sound, it pauses the video: go back to muted
+                            setTimeout(() => {
+                                if (token !== mountToken) return;
+                                if (volumeLevel > 0 && e.target.getPlayerState() !== S.PLAYING) {
+                                    e.target.mute();
+                                    e.target.playVideo();
+                                    showOSD('TURN VOL FOR SOUND', 3000);
+                                }
+                            }, 1500);
+                        } else if (e.data === S.PLAYING && phase === 'seeking') {
+                            phase = 'live';
+                            reveal();
+                        } else if (e.data === S.ENDED) {
+                            e.target.seekTo(0, true);
+                            e.target.playVideo();
+                        }
+                    },
+                    onError: () => reveal()
+                }
+            });
+            mountedPlayers.push({
+                destroy() { player.destroy(); },
+                setVolume() { applyVolume(player); if (volumeLevel > 0) player.playVideo(); }
+            });
+        }
+
+        // ---- Archive.org ----
+        function mountArchive(slot, token) {
+            const id = slot.dataset.id;
+            const file = slot.dataset.file;
+
+            const useEmbed = () => {
+                // No direct file (or it failed): archive.org's own player, no sync
+                slot.innerHTML = `<iframe src="https://archive.org/embed/${id}" title="${escapeAttr(slot.dataset.title || id)}" allowfullscreen></iframe>`;
+                slot.querySelector('iframe').style.pointerEvents = 'auto';   // their player needs clicks
+                mountedPlayers.push({ destroy() { slot.innerHTML = ''; }, setVolume() {} });
+            };
+
+            if (!isArchiveFileUrl(file)) { useEmbed(); return; }
+
+            const reveal = beginLocking(slot);
+            const video = document.createElement('video');
+            video.playsInline = true;
+            video.loop = true;
+            video.preload = 'auto';
+            video.muted = true;
+            const applyVolume = () => {
+                video.volume = VOLUME_STEPS[volumeLevel] / 100;
+                video.muted = volumeLevel === 0;
+            };
+
+            video.addEventListener('loadedmetadata', () => {
+                if (token !== mountToken) return;
+                video.currentTime = broadcastOffset(video.duration);
+                applyVolume();
+                video.play().catch(() => {
+                    // Browser blocked sound: play muted and say how to get sound
+                    video.muted = true;
+                    video.play().catch(() => {});
+                    if (volumeLevel > 0) showOSD('TURN VOL FOR SOUND', 3000);
+                });
+            }, { once: true });
+            video.addEventListener('playing', () => { if (token === mountToken) reveal(); }, { once: true });
+            video.addEventListener('error', () => {
+                if (token !== mountToken) return;
+                video.removeAttribute('src');
+                useEmbed();
+                reveal();
+            }, { once: true });
+
+            video.src = file;
+            slot.appendChild(video);
+            mountedPlayers.push({
+                destroy() { video.pause(); video.removeAttribute('src'); video.load(); },
+                setVolume() { applyVolume(); if (volumeLevel > 0 && video.paused) video.play().catch(() => {}); }
+            });
+        }
+
+        // ---- VOL knob ----
+        let volRotation = 0;
+        function turnVolume() {
+            volumeLevel = (volumeLevel + 1) % VOLUME_STEPS.length;
+            try { localStorage.setItem('rtv_volume', String(volumeLevel)); } catch (e) {}
+            volRotation = rotateKnob('volKnob', volRotation, 45);
+            setAllVolumes();
+            showOSD('VOL ' + volumeBars());
+        }
+
         function openGalleryGroup(i) {
             if (galleryGroupStore[i]) openLightbox(galleryGroupStore[i], 0);
         }
@@ -898,11 +1146,15 @@ function startAutoScrollTextBlocks() {
                             if (m.url.includes('youtube.com')) videoId = m.url.split('v=')[1]?.split('&')[0];
                             else if (m.url.includes('youtu.be')) videoId = m.url.split('/').pop()?.split('?')[0];
                             if (videoId && /^[\w-]{11}$/.test(videoId)) {
-                                contentHTML += `<div class="video-container"><iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}" frameborder="0" allowfullscreen></iframe></div>`;
+                                // Player is created only when this channel is tuned in (see LIVE BROADCAST)
+                                contentHTML += `<div class="video-container player-slot" data-kind="youtube" data-id="${videoId}"></div>`;
                             }
                         } else if (m.type === 'archive') {
                             const archiveId = getArchiveId(m.url);
-                            if (archiveId) contentHTML += archiveEmbedHTML(archiveId, m.title);
+                            if (archiveId) {
+                                const file = isArchiveFileUrl(m.file_url) ? m.file_url : '';
+                                contentHTML += `<div class="video-container player-slot" data-kind="archive" data-id="${archiveId}" data-file="${escapeAttr(file)}" data-title="${escapeAttr(m.title || '')}"></div>`;
+                            }
                         } else if (m.type === 'image') {
                             contentHTML += `<div style="margin:15px 0;"><img src="${escapeAttr(m.url)}" alt="${escapeAttr(m.title || '')}" style="max-width:100%; border:2px solid #333;"></div>`;
                         } else if (m.type === 'text') {
@@ -1000,6 +1252,7 @@ function startAutoScrollTextBlocks() {
         }
 function updateDisplay() {
     stopGuideScroll();
+    unmountPlayers();
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
 
     const screen = document.querySelector('.screen');
@@ -1047,6 +1300,9 @@ function updateDisplay() {
         if (tx) tx.style.display = 'none';
         if (screen) screen.classList.remove('no-signal-active');
     }
+
+    // Start any videos on the channel we just tuned to
+    mountPlayers(document.querySelector('.section.active'));
 
     // =====================
     // START TEXT AUTO-SCROLLING
@@ -1137,6 +1393,7 @@ function updateDisplay() {
 
         document.getElementById('vhfKnob').addEventListener('click', nextVHF);
         document.getElementById('uhfKnob').addEventListener('click', nextUHF);
+        document.getElementById('volKnob').addEventListener('click', turnVolume);
 
         init();
     </script>

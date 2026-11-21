@@ -3,6 +3,8 @@ from flask_cors import CORS
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import io
+import urllib.request
+import urllib.parse
 import threading
 import time
 import json
@@ -344,6 +346,7 @@ ADMIN_HTML = """
             <button onclick="deleteSelectedChannel()" style="background:#cc4444; color:white;">Delete Channel</button>
 
             <br><br>
+            <div id="legacyNote"></div>
             <h3>Add Media</h3>
             <select id="mediaType" onchange="toggleMediaFields()">
                 <option value="image">Image</option>
@@ -428,7 +431,8 @@ ADMIN_HTML = """
                 } else if (m.type === 'linkcard') {
                     label.textContent = 'Linkcard: ' + (m.title || 'Untitled') + (m.link ? '' : '  ⚠ no link');
                 } else if (m.type === 'archive') {
-                    label.textContent = 'Archive.org: ' + (m.title || m.url);
+                    label.textContent = 'Archive.org: ' + (m.title || m.url)
+                        + (m.file_url ? '  📡 live' : '  ⚠ archive.org player (no live broadcast)');
                 } else if (m.type === 'image') {
                     label.textContent = 'Image: ' + (m.title || 'Untitled')
                         + '  [' + (m.gallery_group || 'Uncategorized') + ']'
@@ -447,6 +451,23 @@ ADMIN_HTML = """
                         else editImage(mIndex);
                     };
                     actions.appendChild(editBtn);
+                }
+
+                if (m.type === 'archive' && !m.file_url) {
+                    const fixBtn = document.createElement('button');
+                    fixBtn.textContent = 'Make live';
+                    fixBtn.title = 'Look up the video file on archive.org so this plays as a live broadcast';
+                    fixBtn.onclick = async () => {
+                        fixBtn.disabled = true; fixBtn.textContent = 'Checking…';
+                        const info = await resolveArchive(m.url);
+                        if (info) {
+                            m.file_url = info.file_url;
+                            if (info.duration) m.duration = info.duration;
+                            await saveData();
+                        }
+                        renderMediaList();
+                    };
+                    actions.appendChild(fixBtn);
                 }
 
                 const deleteBtn = document.createElement('button');
@@ -700,6 +721,54 @@ ADMIN_HTML = """
             channelSelect.disabled = false;
         }
 
+        // Ask the backend which archive.org video file to play. Returns info or null (and says why).
+        async function resolveArchive(url) {
+            try {
+                const res = await fetch('/api/archive/resolve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+                    body: JSON.stringify({ url })
+                });
+                const body = await res.json().catch(() => ({}));
+                if (!res.ok) { alert(body.error || ('Lookup failed (' + res.status + ')')); return null; }
+                return body;
+            } catch (e) {
+                alert("Couldn't reach the server to look up the video.");
+                return null;
+            }
+        }
+
+        // Old channels kept an archive.org <iframe> in ch.content; offer a one-click upgrade
+        function renderLegacyNote() {
+            const box = document.getElementById('legacyNote');
+            box.innerHTML = '';
+            const ch = scheduleData[currentBand][currentIndex];
+            if (!ch || !ch.content || ch.content.type !== 'embed' || (ch.media && ch.media.length)) return;
+            const m = String(ch.content.html || '').match(/archive\\.org\\/(?:details|embed)\\/([A-Za-z0-9._-]+)/);
+            if (!m) return;
+            const wrap = document.createElement('div');
+            wrap.className = 'now-toggle';
+            const msg = document.createElement('p');
+            msg.textContent = 'This channel uses the old archive.org format (' + m[1] + '). Convert it so it shows up here and plays as a live broadcast?';
+            const btn = document.createElement('button');
+            btn.textContent = 'Convert';
+            btn.onclick = async () => {
+                btn.disabled = true; btn.textContent = 'Converting…';
+                const url = 'https://archive.org/details/' + m[1];
+                const info = await resolveArchive(url);
+                const item = { type: 'archive', title: ch.schedule || '', url };
+                if (info) { item.file_url = info.file_url; if (info.duration) item.duration = info.duration; }
+                ch.media = [item];
+                delete ch.content;
+                try { await saveData(); } catch (e) { await loadData(); }
+                renderLegacyNote();
+                renderMediaList();
+            };
+            wrap.appendChild(msg);
+            wrap.appendChild(btn);
+            box.appendChild(wrap);
+        }
+
         function loadSelectedChannel() {
             const channelSelect = document.getElementById('channelSelect');
             const editSection = document.getElementById('editSection');
@@ -720,6 +789,7 @@ ADMIN_HTML = """
             document.getElementById('editDescription').value = ch.description || '';
 
             renderMediaList();
+            renderLegacyNote();
             editSection.style.display = 'block';
         }
 
@@ -781,6 +851,15 @@ ADMIN_HTML = """
                 }
 
                 const item = { type, title, url };
+                if (type === 'archive') {
+                    const info = await resolveArchive(url);
+                    if (info) {
+                        item.file_url = info.file_url;
+                        if (info.duration) item.duration = info.duration;
+                    } else if (!confirm("Add it anyway with archive.org's own player? (It will play, but not as a live broadcast. You can click 'Make live' later.)")) {
+                        return;
+                    }
+                }
                 if (type === 'image') {
                     const group = document.getElementById('mediaGroup').value.trim();
                     const isCover = document.getElementById('mediaCover').checked;
@@ -990,6 +1069,78 @@ def update_schedule():
         return jsonify({"error": "Schedule must contain 'vhf' and 'uhf' channel lists"}), 400
     save_schedule(new_data)
     return jsonify({"message": "Saved successfully"})
+
+# ---------- Archive.org video files ----------
+# For live-broadcast playback the site plays archive.org's video file directly
+# (so it can jump to the "broadcast" time). This looks up which file to use.
+ARCHIVE_ID_RE = re.compile(r'archive\.org/(?:details|embed)/([A-Za-z0-9._-]+)')
+# Most browser-friendly first
+ARCHIVE_FORMAT_PREFERENCE = ['h.264', 'h.264 hd', 'mpeg4', '512kb mpeg4', 'h.264 ia']
+
+def _parse_length(value):
+    """archive.org 'length' is seconds ('6420.5') or a clock ('1:47:00')."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    try:
+        if ':' in text:
+            total = 0.0
+            for part in text.split(':'):
+                total = total * 60 + float(part)
+            return total
+        return float(text)
+    except ValueError:
+        return None
+
+def pick_archive_video(files):
+    """Choose the best playable .mp4 from an archive.org metadata 'files' list."""
+    candidates = []
+    for f in files or []:
+        name = f.get('name', '')
+        fmt = (f.get('format') or '').strip().lower()
+        if not name.lower().endswith('.mp4'):
+            continue
+        rank = ARCHIVE_FORMAT_PREFERENCE.index(fmt) if fmt in ARCHIVE_FORMAT_PREFERENCE else len(ARCHIVE_FORMAT_PREFERENCE)
+        try:
+            size = int(f.get('size') or 0)
+        except ValueError:
+            size = 0
+        candidates.append((rank, size, f))
+    if not candidates:
+        return None
+    candidates.sort(key=lambda c: (c[0], c[1]))   # best format, then the smaller file of that format
+    return candidates[0][2]
+
+def fetch_archive_metadata(identifier):
+    req = urllib.request.Request(
+        f'https://archive.org/metadata/{identifier}',
+        headers={'User-Agent': 'RetroTV-admin/1.0 (warrencbennett.com)'})
+    with urllib.request.urlopen(req, timeout=20) as resp:
+        return json.loads(resp.read().decode('utf-8'))
+
+@app.route('/api/archive/resolve', methods=['POST'])
+@login_required
+def archive_resolve():
+    check_csrf(request.headers.get('X-CSRF-Token'))
+    body = request.get_json(silent=True) or {}
+    m = ARCHIVE_ID_RE.search(str(body.get('url', '')))
+    if not m:
+        return jsonify({"error": "That doesn't look like an archive.org video link."}), 400
+    identifier = m.group(1)
+    try:
+        meta = fetch_archive_metadata(identifier)
+    except Exception as err:
+        app.logger.warning("archive.org lookup failed for %s: %s", identifier, err)
+        return jsonify({"error": "Couldn't reach archive.org. Try again in a minute."}), 502
+    chosen = pick_archive_video(meta.get('files') if isinstance(meta, dict) else None)
+    if not chosen:
+        return jsonify({"error": "archive.org has no playable MP4 file for this item.", "id": identifier}), 404
+    return jsonify({
+        "id": identifier,
+        "file_url": f"https://archive.org/download/{identifier}/" + urllib.parse.quote(chosen['name'], safe='/'),
+        "file_name": chosen['name'],
+        "duration": _parse_length(chosen.get('length')),
+    })
 
 # ---------- Backups (admin only) ----------
 def _backup_path_or_404(name):

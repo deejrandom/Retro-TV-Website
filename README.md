@@ -15,6 +15,13 @@ Live at **https://warrencbennett.com**
 - Merging to `main` redeploys Render automatically, and a GitHub Action uploads `index.html` to Neocities.
 - The channel lineup is **not** stored in this repo. Edit channels at `https://retro-tv-website.onrender.com/admin`.
 
+## Live broadcast
+
+Videos play like cable: a channel's video only loads while you're tuned to it, and it starts at the spot a shared "broadcast clock" says it should be at (same for every visitor), looping when it ends. The **VOL** knob cycles MUTE / 1 / 2 / 3 and is remembered per browser.
+
+- **YouTube:** controlled through YouTube's player API.
+- **Archive.org:** the admin panel looks up the film's MP4 file on archive.org when you add it (📡 live). Items without a file use archive.org's own player (no sync); click **Make live** to fix them.
+
 ## Backups
 
 - **On Render:** every save keeps a copy of the previous lineup in `/data/backups/` (newest 30). Restore or download them from the **Backups** section in `/admin`.
