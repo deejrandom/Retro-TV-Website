@@ -1,17 +1,30 @@
-from flask import Flask, jsonify, request, render_template_string, redirect
+from flask import Flask, jsonify, request, render_template_string, redirect, session, abort
 from flask_cors import CORS
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import json
 import os
+import secrets
+import hmac
 
 app = Flask(__name__)
-CORS(app)
+
+# Only these sites may read the schedule from a browser.
+# Override with a comma-separated CORS_ORIGINS env var on Render if you add another domain.
+DEFAULT_ORIGINS = "https://warrencbennett.com,https://www.warrencbennett.com,http://localhost:8000,http://127.0.0.1:8000"
+ALLOWED_ORIGINS = [o.strip() for o in os.environ.get('CORS_ORIGINS', DEFAULT_ORIGINS).split(',') if o.strip()]
+CORS(app, resources={r"/api/schedule": {"origins": ALLOWED_ORIGINS, "methods": ["GET"]}})
 
 SECRET_KEY = os.environ.get('SECRET_KEY')
 if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY environment variable is not set. Set it before starting the app.")
 app.config['SECRET_KEY'] = SECRET_KEY
+
+# Harden the login cookie. Render sets RENDER=true, so cookies are HTTPS-only there
+# but still work when testing locally over plain http.
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = bool(os.environ.get('RENDER'))
 
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', '')
 ADMIN_PASSWORD_HASH = generate_password_hash(ADMIN_PASSWORD) if ADMIN_PASSWORD else None
@@ -25,6 +38,26 @@ login_manager.login_view = 'login'
 class User(UserMixin):
     def __init__(self, id):
         self.id = id
+
+# ---------- CSRF protection ----------
+# Every admin page gets a secret token tied to the login session. Saves and logins
+# must send it back, so another website can't trick your browser into making changes.
+def get_csrf_token():
+    if '_csrf_token' not in session:
+        session['_csrf_token'] = secrets.token_urlsafe(32)
+    return session['_csrf_token']
+
+def check_csrf(sent_token):
+    expected = session.get('_csrf_token')
+    if not expected or not sent_token or not hmac.compare_digest(expected, sent_token):
+        abort(400, description="Security token missing or expired. Reload the page and try again.")
+
+@login_manager.unauthorized_handler
+def unauthorized():
+    # API calls get a clear 401 instead of being redirected to the login page
+    if request.path.startswith('/api/'):
+        return jsonify({"error": "Not logged in. Reload the page and log in again."}), 401
+    return redirect('/login')
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -80,6 +113,7 @@ LOGIN_HTML = """
 <body>
     <h1 style="color:#ffcc00;">Retro TV Admin</h1>
     <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="password" name="password" placeholder="Password" required><br><br>
         <button type="submit">Login</button>
     </form>
@@ -645,19 +679,33 @@ ADMIN_HTML = """
             alert('Scroll speed saved!');
         }
 
+        const CSRF_TOKEN = {{ csrf_token|tojson }};
+
         async function saveData() {
-            await fetch('/api/schedule', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(scheduleData)
-            });
+            let res;
+            try {
+                res = await fetch('/api/schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF_TOKEN },
+                    body: JSON.stringify(scheduleData)
+                });
+            } catch (err) {
+                alert('Could not reach the server. Your change was NOT saved.');
+                throw err;
+            }
+            if (!res.ok) {
+                let msg = 'Save failed (' + res.status + ').';
+                try { msg = (await res.json()).error || msg; } catch (e) {}
+                alert(msg + ' Your change was NOT saved.');
+                throw new Error(msg);
+            }
         }
 
         document.getElementById('addChannelForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             const form = new FormData(this);
             const newChannel = {
-                id: form.get('name').toLowerCase().replace(/\s+/g, '-'),
+                id: form.get('name').toLowerCase().replace(/\\s+/g, '-'),
                 name: form.get('name'),
                 schedule: form.get('schedule'),
                 presentation: form.get('presentation'),
@@ -689,29 +737,34 @@ def get_schedule():
 @app.route('/api/schedule', methods=['POST'])
 @login_required
 def update_schedule():
-    new_data = request.get_json()
-    if not new_data:
+    check_csrf(request.headers.get('X-CSRF-Token'))
+    new_data = request.get_json(silent=True)
+    if not isinstance(new_data, dict):
         return jsonify({"error": "No data provided"}), 400
+    # Refuse anything that would wipe out the channel lists
+    if not isinstance(new_data.get('vhf'), list) or not isinstance(new_data.get('uhf'), list):
+        return jsonify({"error": "Schedule must contain 'vhf' and 'uhf' channel lists"}), 400
     save_schedule(new_data)
     return jsonify({"message": "Saved successfully"})
 
 @app.route('/admin')
 @login_required
 def admin():
-    return render_template_string(ADMIN_HTML)
+    return render_template_string(ADMIN_HTML, csrf_token=get_csrf_token())
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if not ADMIN_PASSWORD_HASH:
         return "Admin login is not configured. Set the ADMIN_PASSWORD environment variable.", 503
     if request.method == 'POST':
-        password = request.form.get('password')
+        check_csrf(request.form.get('csrf_token'))
+        password = request.form.get('password') or ''
         if check_password_hash(ADMIN_PASSWORD_HASH, password):
-            user = User("admin")
-            login_user(user)
+            session.clear()  # fresh session on login
+            login_user(User("admin"))
             return redirect('/admin')
         return "Invalid password", 401
-    return render_template_string(LOGIN_HTML)
+    return render_template_string(LOGIN_HTML, csrf_token=get_csrf_token())
 
 @app.route('/logout')
 @login_required
