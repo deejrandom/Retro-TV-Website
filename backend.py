@@ -3,6 +3,8 @@ from flask_cors import CORS
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 import io
+import threading
+import time
 import json
 import os
 import re
@@ -56,6 +58,50 @@ def check_csrf(sent_token):
     expected = session.get('_csrf_token')
     if not expected or not sent_token or not hmac.compare_digest(expected, sent_token):
         abort(400, description="Security token missing or expired. Reload the page and try again.")
+
+# ---------- Login lockout ----------
+# 5 wrong passwords from one connection in 15 minutes locks that connection out
+# for 15 minutes. Because a determined attacker can fake where they're coming from,
+# there's also a site-wide cap: 30 wrong passwords in 15 minutes from anywhere
+# pauses all logins (yours too) until things cool down.
+LOGIN_WINDOW = 15 * 60
+LOGIN_MAX_PER_CLIENT = 5
+LOGIN_MAX_TOTAL = 30
+_failed_logins = {}          # client -> [timestamps]
+_failed_lock = threading.Lock()
+
+def _client_id():
+    # Render sits behind a proxy; the visitor's address is the first X-Forwarded-For entry
+    fwd = request.headers.get('X-Forwarded-For', '')
+    return fwd.split(',')[0].strip() or request.remote_addr or 'unknown'
+
+def _prune(now):
+    for key in list(_failed_logins):
+        _failed_logins[key] = [t for t in _failed_logins[key] if now - t < LOGIN_WINDOW]
+        if not _failed_logins[key]:
+            del _failed_logins[key]
+
+def login_wait_seconds(client):
+    """0 if this client may try to log in, otherwise seconds until it may."""
+    now = time.monotonic()
+    with _failed_lock:
+        _prune(now)
+        mine = _failed_logins.get(client, [])
+        everyone = sorted(t for ts in _failed_logins.values() for t in ts)
+        waits = [0]
+        if len(mine) >= LOGIN_MAX_PER_CLIENT:
+            waits.append(mine[-LOGIN_MAX_PER_CLIENT] + LOGIN_WINDOW - now)
+        if len(everyone) >= LOGIN_MAX_TOTAL:
+            waits.append(everyone[-LOGIN_MAX_TOTAL] + LOGIN_WINDOW - now)
+        return max(waits)
+
+def record_failed_login(client):
+    with _failed_lock:
+        _failed_logins.setdefault(client, []).append(time.monotonic())
+
+def clear_failed_logins(client):
+    with _failed_lock:
+        _failed_logins.pop(client, None)
 
 @login_manager.unauthorized_handler
 def unauthorized():
@@ -197,6 +243,7 @@ LOGIN_HTML = """
 </head>
 <body>
     <h1 style="color:#ffcc00;">Retro TV Admin</h1>
+    {% if error %}<p style="color:#ff5555; line-height:1.6;">{{ error }}</p>{% endif %}
     <form method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
         <input type="password" name="password" placeholder="Password" required><br><br>
@@ -1010,13 +1057,24 @@ def login():
         return "Admin login is not configured. Set the ADMIN_PASSWORD environment variable.", 503
     if request.method == 'POST':
         check_csrf(request.form.get('csrf_token'))
+        client = _client_id()
+        wait = login_wait_seconds(client)
+        if wait > 0:
+            minutes = int(wait // 60) + 1
+            app.logger.warning("Login blocked for %s (lockout, %d min left)", client, minutes)
+            return render_template_string(
+                LOGIN_HTML, csrf_token=get_csrf_token(),
+                error=f"Too many wrong passwords. Try again in {minutes} minute{'s' if minutes != 1 else ''}."), 429
         password = request.form.get('password') or ''
         if check_password_hash(ADMIN_PASSWORD_HASH, password):
+            clear_failed_logins(client)
             session.clear()  # fresh session on login
             login_user(User("admin"))
             return redirect('/admin')
-        return "Invalid password", 401
-    return render_template_string(LOGIN_HTML, csrf_token=get_csrf_token())
+        record_failed_login(client)
+        app.logger.warning("Failed admin login from %s", client)
+        return render_template_string(LOGIN_HTML, csrf_token=get_csrf_token(), error="Wrong password."), 401
+    return render_template_string(LOGIN_HTML, csrf_token=get_csrf_token(), error=None)
 
 @app.route('/logout')
 @login_required

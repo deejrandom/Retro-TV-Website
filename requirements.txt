@@ -1,5 +1,14 @@
-Flask
-Flask-Cors
-Flask-Login
-Werkzeug
-gunicorn
+# Exact versions, so a deploy never picks up a surprise update.
+# To upgrade: change a version here, test locally, then merge.
+Flask==3.1.3
+Flask-Cors==6.0.5
+Flask-Login==0.6.3
+Werkzeug==3.1.9
+gunicorn==27.0.1
+
+# Installed automatically by the packages above; pinned too
+blinker==1.9.0
+click==8.5.1
+itsdangerous==2.2.0
+Jinja2==3.1.6
+MarkupSafe==3.0.4
