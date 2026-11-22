@@ -568,7 +568,7 @@
            Same page, restyled as a tall handheld set on narrow screens.
            Desktop above 700px wide is untouched.
            ===================== */
-        @media (max-width: 700px) {
+        @media (max-width: 700px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px) {
             body {
                 height: 100dvh;
                 min-height: 0;
@@ -730,6 +730,62 @@
             body.video-on .content { padding: 10px 4px 8px; }
             body.video-on .video-container { border: none; margin-bottom: 6px; }
             body.video-on .channel-title { margin: 0 6px 8px; }
+        }
+
+        /* =====================
+           PHONE TURNED SIDEWAYS: "thumb grips"
+           Screen in the middle; band switch + power light on the left grip,
+           channel up/down + VOL on the right grip. Same buttons as upright.
+           ===================== */
+        @media (orientation: landscape) and (max-height: 500px) {
+            body { padding: 6px; }
+
+            .tv-frame,
+            body.video-on .tv-frame {
+                display: grid;
+                grid-template-columns: 96px minmax(0, 1fr) 96px;
+                grid-template-rows: auto minmax(0, 1fr) auto auto;
+                grid-template-areas:
+                    "power  screen ch"
+                    "band   screen ch"
+                    "grille screen vol"
+                    ".      name   .";
+                max-width: none;
+                padding: 10px 14px 6px;
+                gap: 4px 12px;
+                border-radius: 40px;
+            }
+
+            .mobile-controls, .m-row, .m-bottom { display: contents; }
+
+            .mobile-topbar { grid-area: power; height: auto; padding: 4px 0; justify-content: center; flex-direction: row-reverse; }
+            .screen { grid-area: screen; }
+            .m-group:nth-child(1) { grid-area: band; align-self: center; }
+            .m-group:nth-child(2) { grid-area: ch; align-self: center; }
+            .m-group:nth-child(3) { grid-area: vol; align-self: end; padding-bottom: 4px; }
+            .m-grille { grid-area: grille; justify-self: center; align-self: end; padding-bottom: 6px; }
+            .m-nameplate { grid-area: name; justify-self: center; font-size: 5px; }
+
+            /* Band switch stacks; channel buttons stack with UP on top */
+            .m-band { flex-direction: column; }
+            .m-band button { min-width: 64px; }
+            .m-ch { flex-direction: column-reverse; }
+            .m-ch button { width: 60px; font-size: 0; }
+            #mChUp::after { content: '▲'; font-size: 10px; }
+            #mChDown::after { content: '▼'; font-size: 10px; }
+            .m-grille span { height: 26px; }
+
+            /* Screen content sized for a short, wide screen */
+            .content { padding: 8px 10px 10px; }
+            .channel-title { margin-bottom: 6px; }
+            .guide-scroll-container { height: calc(100dvh - 150px); }
+            .text-block { height: calc(100dvh - 120px); }
+            .video-container { height: calc(100dvh - 110px); aspect-ratio: auto; margin-bottom: 0; }
+            body.video-on .screen { border-width: 6px; }
+            body.video-on .content { padding: 6px 4px 4px; }
+            body.video-on .channel-title { margin: 0 6px 4px; }
+            body.video-on .video-container { height: calc(100dvh - 92px); }
+            .linkcards-grid, .gallery-groups-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         }
     </style>
 </head>
@@ -1191,7 +1247,7 @@
 
         // First video channel on a phone: say you can tap it (once per browser)
         function maybeShowTapHint() {
-            if (!window.matchMedia('(max-width: 700px)').matches) return;
+            if (!window.matchMedia('(max-width: 700px) and (orientation: portrait), (orientation: landscape) and (max-height: 500px)').matches) return;
             try {
                 if (localStorage.getItem('rtv_tap_hint')) return;
                 localStorage.setItem('rtv_tap_hint', '1');
