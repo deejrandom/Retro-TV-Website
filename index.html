@@ -836,7 +836,7 @@
                     <span class="m-label">CHANNEL</span>
                 </div>
                 <div class="m-group">
-                    <button type="button" class="knob vol-knob m-vol" id="volKnobMobile" aria-label="Volume: tap the left side to turn down, the right side to turn up"></button>
+                    <button type="button" class="knob vol-knob m-vol" id="volKnobMobile" aria-label="Volume: tap to turn up; after the top it goes back to mute"></button>
                     <span class="m-label">VOL</span>
                 </div>
             </div>
@@ -1516,6 +1516,11 @@
             document.querySelectorAll('.vol-knob').forEach(k => { k.style.transform = angle; });
         }
 
+        // Phones: each tap turns it up one click; past the top it goes round to MUTE
+        function tapVolume() {
+            changeVolume(volumeLevel >= VOLUME_MAX ? -VOLUME_MAX : 1);
+        }
+
         function changeVolume(step) {
             const next = Math.max(0, Math.min(VOLUME_MAX, volumeLevel + step));
             if (next !== volumeLevel) {
@@ -2027,7 +2032,7 @@ function updateDisplay() {
         document.getElementById('uhfKnob').addEventListener('click', nextUHF);
         document.getElementById('volKnob').addEventListener('click', onVolumeClick);
         document.getElementById('volKnob').addEventListener('wheel', onVolumeWheel, { passive: false });
-        document.getElementById('volKnobMobile').addEventListener('click', onVolumeClick);
+        document.getElementById('volKnobMobile').addEventListener('click', tapVolume);
         document.getElementById('mChUp').addEventListener('click', () => stepChannel(1));
         document.getElementById('mChDown').addEventListener('click', () => stepChannel(-1));
         document.getElementById('mBandVHF').addEventListener('click', () => setBand('vhf'));
