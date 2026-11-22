@@ -17,7 +17,7 @@ Live at **https://warrencbennett.com**
 
 ## Live broadcast
 
-Videos play like cable: a channel's video only loads while you're tuned to it, and it starts at the spot a shared "broadcast clock" says it should be at (same for every visitor), looping when it ends. The **VOL** knob cycles MUTE / 1 / 2 / 3 and is remembered per browser.
+Videos play like cable: a channel's video only loads while you're tuned to it, and it starts at the spot a shared "broadcast clock" says it should be at (same for every visitor), looping when it ends. The **VOL** dial has MUTE plus 5 levels: click its left half to turn down, right half to turn up (or roll the mouse wheel over it). A segmented VOLUME bar shows on screen. New visitors start at 3; each browser remembers its setting.
 
 - **YouTube:** controlled through YouTube's player API.
 - **Archive.org:** the admin panel looks up the film's MP4 file on archive.org when you add it (📡 live). Items without a file use archive.org's own player (no sync); click **Make live** to fix them.

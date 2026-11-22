@@ -110,6 +110,25 @@
             transform: translate(-50%, -50%) rotate(45deg);
         }
        
+        /* VOL: small silver dial, set apart from the channel knobs.
+           Click the left half to turn down, the right half to turn up. */
+        .knob.vol-knob {
+            width: 34px;
+            height: 34px;
+            margin: 10px auto 0;
+            border: 3px solid #111;
+            background: radial-gradient(circle at 35% 30%, #e0e0e0, #8a8a8a 55%, #3a3a3a);
+            box-shadow: 0 0 0 5px #1a1a1a, 0 0 0 6px #444, 0 0 10px rgba(57, 255, 20, 0.35);
+            transition: transform 0.2s ease-out;
+        }
+        .knob.vol-knob::after {
+            width: 3px;
+            height: 12px;
+            top: 4px;
+            background: #111;
+            transform: translateX(-50%);
+        }
+
         .knob-label {
             text-align: center;
             font-size: 10px;
@@ -220,7 +239,38 @@
         /* Hidden while the set "locks on" to the broadcast; static shows through */
         .player-slot.locking { visibility: hidden; }
 
-        /* On-screen display for volume etc. */
+        /* Volume bar along the bottom of the screen, like an 80s set */
+        #volOSD {
+            position: absolute;
+            left: 50%;
+            bottom: 80px;
+            transform: translateX(-50%);
+            z-index: 8;
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 8px 16px;
+            background: rgba(0, 0, 0, 0.55);
+            font-family: 'VT323', 'Courier New', monospace;
+            font-size: 28px;
+            color: #39ff14;
+            text-shadow: 0 0 8px #39ff14;
+            letter-spacing: 3px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.4s ease-out;
+        }
+        #volOSD.show { opacity: 1; transition: none; }
+        #volOSD .vol-bar { display: flex; gap: 5px; }
+        #volOSD .vol-bar i {
+            width: 34px;
+            height: 16px;
+            border: 2px solid #39ff14;
+            box-shadow: 0 0 6px rgba(57, 255, 20, 0.5);
+        }
+        #volOSD .vol-bar i.on { background: #39ff14; }
+
+        /* On-screen display for messages */
         #osd {
             position: absolute;
             top: 14px;
@@ -479,6 +529,7 @@
         <div class="content"></div>
         <canvas id="staticCanvas"></canvas>
         <div id="osd"></div>
+        <div id="volOSD"></div>
         <div class="no-signal-text" id="noSignalText">NO SIGNAL<br><span style="font-size:12px;">CHANNEL OFF AIR</span></div>
     </div>
        
@@ -492,7 +543,7 @@
                 <div class="knob-label">UHF</div>
             </div>
             <div>
-                <div class="knob" id="volKnob" title="Volume"></div>
+                <div class="knob vol-knob" id="volKnob" title="Volume: click left to turn down, right to turn up"></div>
                 <div class="knob-label">VOL</div>
             </div>
         </div>
@@ -758,11 +809,12 @@
         // the show, the same spot for every visitor, like real cable.
         // =====================
         const BROADCAST_EPOCH = Date.UTC(2026, 0, 1);   // the "network" signed on Jan 1, 2026
-        const VOLUME_STEPS = [0, 30, 65, 100];           // OFF, 1, 2, 3
-        let volumeLevel = 2;
+        const VOLUME_STEPS = [0, 20, 40, 60, 80, 100];   // MUTE, then 5 segments
+        const VOLUME_MAX = VOLUME_STEPS.length - 1;
+        let volumeLevel = 3;                               // new visitors start in the middle
         try {
-            const saved = parseInt(localStorage.getItem('rtv_volume'), 10);
-            if (saved >= 0 && saved < VOLUME_STEPS.length) volumeLevel = saved;
+            const saved = parseInt(localStorage.getItem('rtv_volume5'), 10);
+            if (saved >= 0 && saved <= VOLUME_MAX) volumeLevel = saved;
         } catch (e) {}
 
         let mountedPlayers = [];
@@ -788,8 +840,18 @@
             osdTimer = setTimeout(() => { osd.style.display = 'none'; }, ms);
         }
 
-        function volumeBars() {
-            return volumeLevel === 0 ? 'MUTE' : '▮'.repeat(volumeLevel) + '▯'.repeat(VOLUME_STEPS.length - 1 - volumeLevel);
+        let volOsdTimer = null;
+        function showVolumeOSD() {
+            const box = document.getElementById('volOSD');
+            if (!box) return;
+            let bar = '';
+            for (let i = 1; i <= VOLUME_MAX; i++) bar += `<i class="${i <= volumeLevel ? 'on' : ''}"></i>`;
+            box.innerHTML = volumeLevel === 0
+                ? '<span>VOLUME</span><span>MUTE</span>'
+                : `<span>VOLUME</span><span class="vol-bar">${bar}</span>`;
+            box.classList.add('show');
+            clearTimeout(volOsdTimer);
+            volOsdTimer = setTimeout(() => box.classList.remove('show'), 1800);
         }
 
         function loadYouTubeAPI() {
@@ -809,7 +871,7 @@
         }
 
         // Static on screen while the set locks on; reveal when synced (or give up waiting)
-        function beginLocking(slot) {
+        function beginLocking(slot, maxWaitMs = 6000) {
             slot.classList.add('locking');
             startStaticEffect();
             let done = false;
@@ -819,7 +881,7 @@
                 slot.classList.remove('locking');
                 if (!document.querySelector('.player-slot.locking')) stopStaticEffect();
             };
-            setTimeout(reveal, 6000);
+            setTimeout(reveal, maxWaitMs);   // safety net if the video never starts
             return reveal;
         }
 
@@ -925,7 +987,8 @@
 
             if (!isArchiveFileUrl(file)) { useEmbed(); return; }
 
-            const reveal = beginLocking(slot);
+            // Big files can take a while to reach the middle of the film: hold the static up to 25s
+            const reveal = beginLocking(slot, 25000);
             const video = document.createElement('video');
             video.playsInline = true;
             video.loop = true;
@@ -947,7 +1010,18 @@
                     if (volumeLevel > 0) showOSD('TURN VOL FOR SOUND', 3000);
                 });
             }, { once: true });
-            video.addEventListener('playing', () => { if (token === mountToken) reveal(); }, { once: true });
+            // Only clear the static once a picture is actually on screen (no black gap)
+            video.addEventListener('playing', () => {
+                if (token !== mountToken) return;
+                if ('requestVideoFrameCallback' in video) {
+                    video.requestVideoFrameCallback(() => { if (token === mountToken) reveal(); });
+                } else {
+                    const onTime = () => {
+                        if (video.readyState >= 3) { video.removeEventListener('timeupdate', onTime); if (token === mountToken) reveal(); }
+                    };
+                    video.addEventListener('timeupdate', onTime);
+                }
+            }, { once: true });
             video.addEventListener('error', () => {
                 if (token !== mountToken) return;
                 video.removeAttribute('src');
@@ -964,13 +1038,31 @@
         }
 
         // ---- VOL knob ----
-        let volRotation = 0;
-        function turnVolume() {
-            volumeLevel = (volumeLevel + 1) % VOLUME_STEPS.length;
-            try { localStorage.setItem('rtv_volume', String(volumeLevel)); } catch (e) {}
-            volRotation = rotateKnob('volKnob', volRotation, 45);
-            setAllVolumes();
-            showOSD('VOL ' + volumeBars());
+        // Pointer sweeps from 7 o'clock (MUTE) to 5 o'clock (max)
+        function drawVolumeKnob() {
+            const knob = document.getElementById('volKnob');
+            if (knob) knob.style.transform = `rotate(${-135 + volumeLevel * (270 / VOLUME_MAX)}deg)`;
+        }
+
+        function changeVolume(step) {
+            const next = Math.max(0, Math.min(VOLUME_MAX, volumeLevel + step));
+            if (next !== volumeLevel) {
+                volumeLevel = next;
+                try { localStorage.setItem('rtv_volume5', String(volumeLevel)); } catch (e) {}
+                drawVolumeKnob();
+                setAllVolumes();
+            }
+            showVolumeOSD();   // show the bar even at the ends, so you can see you're at MUTE or max
+        }
+
+        function onVolumeClick(e) {
+            const r = e.currentTarget.getBoundingClientRect();
+            changeVolume(e.clientX < r.left + r.width / 2 ? -1 : 1);
+        }
+
+        function onVolumeWheel(e) {
+            e.preventDefault();
+            changeVolume(e.deltaY < 0 ? 1 : -1);
         }
 
         function openGalleryGroup(i) {
@@ -1400,7 +1492,9 @@ function updateDisplay() {
 
         document.getElementById('vhfKnob').addEventListener('click', nextVHF);
         document.getElementById('uhfKnob').addEventListener('click', nextUHF);
-        document.getElementById('volKnob').addEventListener('click', turnVolume);
+        document.getElementById('volKnob').addEventListener('click', onVolumeClick);
+        document.getElementById('volKnob').addEventListener('wheel', onVolumeWheel, { passive: false });
+        drawVolumeKnob();
 
         init();
     </script>
