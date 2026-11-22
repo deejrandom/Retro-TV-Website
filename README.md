@@ -26,6 +26,8 @@ Videos play like cable: a channel's video only loads while you're tuned to it, a
 
 On screens up to 700px wide the TV becomes an 80s pocket set: tall screen with a silver bezel, a top bezel with a red power light, a VHF/UHF switch, ◀ ▶ channel buttons, the silver VOL dial, and a nameplate with a speaker grille. Swipe the screen left/right to change channel. Desktop is unchanged.
 
+Turned sideways (landscape, up to 500px tall), it becomes a widescreen handheld with thumb grips: band switch and power light on the left, channel ▲▼ and VOL on the right. Tap a video for full screen either way.
+
 ## Backups
 
 - **On Render:** every save keeps a copy of the previous lineup in `/data/backups/` (newest 30). Restore or download them from the **Backups** section in `/admin`.
