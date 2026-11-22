@@ -539,10 +539,178 @@
             font-size: 11px;
             color: #ffcc00;
         }
+
+        /* Phone-only parts: hidden on desktop */
+        .mobile-topbar, .mobile-controls { display: none; }
+
+        /* =====================
+           PHONE: 80s POCKET TV
+           Same page, restyled as a tall handheld set on narrow screens.
+           Desktop above 700px wide is untouched.
+           ===================== */
+        @media (max-width: 700px) {
+            body {
+                height: 100dvh;
+                min-height: 0;
+                padding: 10px;
+                align-items: stretch;
+            }
+
+            .tv-frame {
+                flex-direction: column;
+                aspect-ratio: auto;
+                width: 100%;
+                max-width: 440px;
+                height: 100%;
+                margin: 0 auto;
+                padding: 0 14px 12px;
+                gap: 12px;
+                background: linear-gradient(180deg, #232326, #161618);
+                border: 2px solid #3a3a3e;
+                border-radius: 30px;
+                box-shadow: 0 0 40px rgba(255, 41, 117, 0.35),
+                            0 0 70px rgba(0, 212, 255, 0.25),
+                            inset 0 2px 0 rgba(255, 255, 255, 0.08);
+            }
+
+            /* Thicker top bezel with a red power light */
+            .mobile-topbar {
+                display: flex;
+                align-items: center;
+                justify-content: flex-end;
+                gap: 8px;
+                height: 34px;
+                padding: 0 12px;
+                flex: none;
+            }
+            .power-label { font-size: 6px; color: #8d8d92; letter-spacing: 1px; }
+            .power-led {
+                width: 9px;
+                height: 9px;
+                border-radius: 50%;
+                background: #ff2a2a;
+                box-shadow: 0 0 6px #ff2a2a, 0 0 14px rgba(255, 42, 42, 0.7);
+            }
+
+            /* Silver screen bezel */
+            .screen {
+                flex: 1;
+                min-height: 0;
+                border: 10px solid #b3b3b8;
+                border-radius: 16px;
+                box-shadow: 0 0 0 1px #6d6d72, inset 0 0 30px rgba(0, 0, 0, 0.95);
+            }
+            .content { padding: 12px 12px 14px; }
+
+            .right-panel { display: none; }
+
+            /* Controls under the screen */
+            .mobile-controls {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                flex: none;
+            }
+            .m-row {
+                display: flex;
+                align-items: flex-start;
+                justify-content: space-between;
+                gap: 8px;
+            }
+            .m-group { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+            .m-label { font-size: 6px; color: #8d8d92; }
+            .m-band {
+                display: flex;
+                background: #0c0c0e;
+                border: 1px solid #3a3a3e;
+                border-radius: 8px;
+                padding: 3px;
+            }
+            .m-band button {
+                min-width: 54px;
+                min-height: 44px;
+                border: none;
+                border-radius: 6px;
+                background: transparent;
+                color: #ffcc00;
+                font-family: inherit;
+                font-size: 8px;
+                cursor: pointer;
+            }
+            .m-band button[aria-pressed="true"] { background: var(--neon-green); color: #05060a; }
+            .m-ch { display: flex; gap: 8px; }
+            .m-ch button {
+                width: 48px;
+                height: 44px;
+                border: 1px solid #000;
+                border-radius: 8px;
+                background: linear-gradient(180deg, #3a3a3e, #202023);
+                color: #ffcc00;
+                font-family: inherit;
+                font-size: 10px;
+                cursor: pointer;
+            }
+            .m-ch button:active, .m-band button:active { filter: brightness(1.3); }
+            .knob.vol-knob.m-vol {
+                width: 44px;
+                height: 44px;
+                margin: 0;
+                padding: 0;
+                box-shadow: 0 0 0 4px #1a1a1a, 0 0 0 5px #444;
+            }
+            .knob.vol-knob.m-vol::after { height: 13px; }
+
+            /* Nameplate + speaker grille */
+            .m-bottom {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                padding: 0 6px;
+            }
+            .m-nameplate { font-size: 6px; color: #b8b8bd; letter-spacing: 2px; }
+            .m-grille { display: flex; gap: 6px; }
+            .m-grille span {
+                width: 5px;
+                height: 22px;
+                border-radius: 3px;
+                background: #0a0a0b;
+                box-shadow: inset 0 1px 2px #000, 0 1px 0 rgba(255, 255, 255, 0.06);
+            }
+
+            /* Screen content sized for a phone */
+            /* Pixel font needs room when long text wraps onto a second line */
+            .channel-title { font-size: 11px; line-height: 1.7; margin-bottom: 10px; border-bottom-width: 2px; }
+            .guide-header { flex-wrap: wrap; gap: 4px 10px; }
+            .guide-time { font-size: 9px; line-height: 1.8; }
+            .guide-scroll-container { height: calc(100dvh - 330px); }
+            .guide-grid {
+                grid-template-columns: 76px minmax(0, 1fr);
+                gap: 2px 8px;
+                font-size: 11px;
+                padding: 6px 0;
+            }
+            .guide-entry { padding: 9px 4px; line-height: 1.6; }
+            .text-block { height: calc(100dvh - 318px); font-size: 22px; }
+            .channel-description { font-size: 11px; padding: 10px; }
+            .video-container { height: auto; aspect-ratio: 4 / 3; max-height: none; }
+            .linkcards-grid, .gallery-groups-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+            .link-card-title { font-size: 10px; }
+            .no-signal-text { font-size: 14px; line-height: 1.8; width: 90%; }
+            .no-signal-text span { font-size: 9px !important; }
+
+            #osd { font-size: 18px; top: 10px; right: 12px; }
+            #volOSD { bottom: 14px; gap: 8px; padding: 6px 10px; font-size: 20px; letter-spacing: 2px; }
+            #volOSD .vol-bar { gap: 4px; }
+            #volOSD .vol-bar i { width: 20px; height: 12px; }
+        }
     </style>
 </head>
 <body>
    <div class="tv-frame">
+    <div class="mobile-topbar" aria-hidden="true">
+        <span class="power-label">POWER</span>
+        <span class="power-led"></span>
+    </div>
     <div class="screen">
         <div class="content"></div>
         <canvas id="staticCanvas"></canvas>
@@ -565,6 +733,34 @@
                 <div class="knob-label">VOL</div>
             </div>
         </div>
+
+        <!-- Phone controls (shown only on narrow screens) -->
+        <div class="mobile-controls">
+            <div class="m-row">
+                <div class="m-group">
+                    <div class="m-band" role="group" aria-label="Band">
+                        <button type="button" id="mBandVHF" aria-pressed="true">VHF</button>
+                        <button type="button" id="mBandUHF" aria-pressed="false">UHF</button>
+                    </div>
+                    <span class="m-label">BAND</span>
+                </div>
+                <div class="m-group">
+                    <div class="m-ch">
+                        <button type="button" id="mChDown" aria-label="Channel down">◀</button>
+                        <button type="button" id="mChUp" aria-label="Channel up">▶</button>
+                    </div>
+                    <span class="m-label">CHANNEL</span>
+                </div>
+                <div class="m-group">
+                    <button type="button" class="knob vol-knob m-vol" id="volKnobMobile" aria-label="Volume: tap the left side to turn down, the right side to turn up"></button>
+                    <span class="m-label">VOL</span>
+                </div>
+            </div>
+            <div class="m-bottom">
+                <span class="m-nameplate">RETRO FUTURE · POCKET VISION</span>
+                <div class="m-grille" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
+            </div>
+        </div>
     </div>
 
     <!-- LIGHTBOX -->
@@ -585,6 +781,7 @@
         let lastMode = 'vhf';
         let scheduleData = { vhf: [], uhf: [] };
         let vhfRotation = 0;
+        let lastStepDir = 1;   // +1 = channel up, -1 = channel down (used for pre-tuning)
         let uhfRotation = 0;
         let guideScrollRAF = null;
 
@@ -789,6 +986,7 @@
             }
             currentMode = 'vhf';
             lastMode = 'vhf';
+            lastStepDir = 1;
             vhfRotation = rotateKnob('vhfKnob', vhfRotation, 45);
             updateDisplay();
         }
@@ -803,6 +1001,7 @@
             }
             currentMode = 'uhf';
             lastMode = 'uhf';
+            lastStepDir = 1;
             uhfRotation = rotateKnob('uhfKnob', uhfRotation, 45);
             updateDisplay();
         }
@@ -952,7 +1151,8 @@
             if (lastMode !== currentMode) return null;
             const list = currentMode === 'vhf' ? scheduleData.vhf : scheduleData.uhf;
             const index = currentMode === 'vhf' ? vhfIndex : uhfIndex;
-            const nextIndex = (index + 1) % (list.length + 1);
+            const n = list.length + 1;
+            const nextIndex = (index + lastStepDir + n) % n;   // the way you've been flipping
             if (nextIndex === 0) return null;   // next click goes to the guide
             const ch = list[nextIndex - 1];
             return ch ? document.getElementById(ch.id) : null;
@@ -1159,8 +1359,8 @@
         // ---- VOL knob ----
         // Pointer sweeps from 7 o'clock (MUTE) to 5 o'clock (max)
         function drawVolumeKnob() {
-            const knob = document.getElementById('volKnob');
-            if (knob) knob.style.transform = `rotate(${-135 + volumeLevel * (270 / VOLUME_MAX)}deg)`;
+            const angle = `rotate(${-135 + volumeLevel * (270 / VOLUME_MAX)}deg)`;
+            document.querySelectorAll('.vol-knob').forEach(k => { k.style.transform = angle; });
         }
 
         function changeVolume(step) {
@@ -1470,6 +1670,7 @@ function startAutoScrollTextBlocks() {
         }
 function updateDisplay() {
     stopGuideScroll();
+    syncBandButtons();
     unmountPlayers();
     document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
 
@@ -1531,9 +1732,66 @@ function updateDisplay() {
 }
         
 
+        // ---- Phone controls ----
+        // Step the current band's channel up (+1) or down (-1), wrapping through the guide
+        function stepChannel(dir) {
+            if (!scheduleLoaded) return;
+            stopGuideScroll();
+            const list = currentMode === 'vhf' ? scheduleData.vhf : scheduleData.uhf;
+            const n = list.length + 1;
+            if (currentMode === 'vhf') {
+                vhfIndex = (vhfIndex + dir + n) % n;
+                vhfRotation = rotateKnob('vhfKnob', vhfRotation, 45 * dir);
+            } else {
+                uhfIndex = (uhfIndex + dir + n) % n;
+                uhfRotation = rotateKnob('uhfKnob', uhfRotation, 45 * dir);
+            }
+            lastMode = currentMode;
+            lastStepDir = dir;
+            updateDisplay();
+        }
+
+        // Switch band, picking up where that band was left
+        function setBand(mode) {
+            if (!scheduleLoaded || (currentMode === mode && lastMode === mode)) return;
+            stopGuideScroll();
+            currentMode = mode;
+            lastMode = mode;
+            lastStepDir = 1;
+            updateDisplay();
+        }
+
+        function syncBandButtons() {
+            const v = document.getElementById('mBandVHF'), u = document.getElementById('mBandUHF');
+            if (v) v.setAttribute('aria-pressed', String(currentMode === 'vhf'));
+            if (u) u.setAttribute('aria-pressed', String(currentMode === 'uhf'));
+        }
+
+        // Swipe the screen sideways to change channel (left = up, right = down)
+        function setupSwipe() {
+            const screen = document.querySelector('.screen');
+            if (!screen) return;
+            let startX = 0, startY = 0, tracking = false;
+            screen.addEventListener('touchstart', e => {
+                if (e.touches.length !== 1) { tracking = false; return; }
+                tracking = true;
+                startX = e.touches[0].clientX;
+                startY = e.touches[0].clientY;
+            }, { passive: true });
+            screen.addEventListener('touchend', e => {
+                if (!tracking) return;
+                tracking = false;
+                if (document.getElementById('lightbox')?.classList.contains('active')) return;
+                const dx = e.changedTouches[0].clientX - startX;
+                const dy = e.changedTouches[0].clientY - startY;
+                if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) stepChannel(dx < 0 ? 1 : -1);
+            }, { passive: true });
+        }
+
         function jumpToVHF(index) {
             stopGuideScroll();
             currentMode = 'vhf';
+            lastMode = 'vhf';
             vhfIndex = index;
             updateDisplay();
         }
@@ -1541,6 +1799,7 @@ function updateDisplay() {
         function jumpToUHF(index) {
             stopGuideScroll();
             currentMode = 'uhf';
+            lastMode = 'uhf';
             uhfIndex = index;
             updateDisplay();
         }
@@ -1615,6 +1874,12 @@ function updateDisplay() {
         document.getElementById('uhfKnob').addEventListener('click', nextUHF);
         document.getElementById('volKnob').addEventListener('click', onVolumeClick);
         document.getElementById('volKnob').addEventListener('wheel', onVolumeWheel, { passive: false });
+        document.getElementById('volKnobMobile').addEventListener('click', onVolumeClick);
+        document.getElementById('mChUp').addEventListener('click', () => stepChannel(1));
+        document.getElementById('mChDown').addEventListener('click', () => stepChannel(-1));
+        document.getElementById('mBandVHF').addEventListener('click', () => setBand('vhf'));
+        document.getElementById('mBandUHF').addEventListener('click', () => setBand('uhf'));
+        setupSwipe();
         drawVolumeKnob();
 
         init();
