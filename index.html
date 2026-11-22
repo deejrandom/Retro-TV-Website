@@ -237,7 +237,7 @@
         .player-slot video { object-fit: contain; }
 
         /* Cable-style tuning: black while the channel loads, then the picture fades in */
-        .player-slot { transition: opacity 0.35s ease-in; }
+        .player-slot { transition: opacity 0.15s ease-in; }
         .player-slot.locking { opacity: 0; transition: none; }
 
         /* Volume bar along the bottom of the screen, like an 80s set */
@@ -818,7 +818,7 @@
             if (saved >= 0 && saved <= VOLUME_MAX) volumeLevel = saved;
         } catch (e) {}
 
-        let mountedPlayers = [];
+        const players = new Set();   // every player that exists right now (live or pre-tuned)
         let mountToken = 0;
         let ytApiPromise = null;
         let osdTimer = null;
@@ -885,156 +885,258 @@
             return reveal;
         }
 
+        // =====================
+        // CHANNEL PLAYERS + PRE-TUNING
+        // The channel on screen is "live". After it's up, the next channel in the
+        // same band is "pre-tuned": loaded muted and hidden, parked at the current
+        // broadcast spot, so turning the dial to it is nearly instant.
+        // Only one channel is ever pre-tuned, to keep extra downloading small.
+        // =====================
+        const PRETUNE_DELAY_MS = 2500;      // let the live channel get going first
+        const PRETUNE_REFRESH_MS = 30000;   // keep a parked film close to "live"
+        let pretuneTimer = null;
+
+        function createPlayer(slot) {
+            const entry = slot.dataset.kind === 'youtube' ? createYouTubePlayer(slot) : createArchivePlayer(slot);
+            slot._player = entry;
+            players.add(entry);
+            return entry;
+        }
+
+        function destroyPlayer(entry) {
+            try { entry.destroy(); } catch (e) {}
+            players.delete(entry);
+            if (entry.slot) {
+                entry.slot._player = null;
+                entry.slot.innerHTML = '';
+                entry.slot.classList.remove('locking');
+            }
+        }
+
+        // Called on every channel change with the section now on screen
         function mountPlayers(section) {
             const token = ++mountToken;
-            if (!section) return;
-            section.querySelectorAll('.player-slot').forEach(slot => {
-                if (slot.dataset.kind === 'youtube') mountYouTube(slot, token);
-                else if (slot.dataset.kind === 'archive') mountArchive(slot, token);
-            });
+            clearTimeout(pretuneTimer);
+            const liveSlots = section ? [...section.querySelectorAll('.player-slot')] : [];
+            // Drop every player that isn't on the new channel
+            [...players].forEach(entry => { if (!liveSlots.includes(entry.slot)) destroyPlayer(entry); });
+            // Bring the new channel live, reusing a pre-tuned player if there is one
+            liveSlots.forEach(slot => (slot._player || createPlayer(slot)).goLive(token));
+            pretuneTimer = setTimeout(() => { if (token === mountToken) pretuneNext(); }, PRETUNE_DELAY_MS);
         }
 
         function unmountPlayers() {
+            // Kept for callers that clear the screen; real cleanup happens in mountPlayers
             mountToken++;
-            mountedPlayers.forEach(p => { try { p.destroy(); } catch (e) {} });
-            mountedPlayers = [];
-            document.querySelectorAll('.player-slot').forEach(slot => {
-                slot.innerHTML = '';
-                slot.classList.remove('locking');
-            });
+        }
+
+        // The channel the next click of the current band's dial will land on
+        function nextChannelSection() {
+            if (lastMode !== currentMode) return null;
+            const list = currentMode === 'vhf' ? scheduleData.vhf : scheduleData.uhf;
+            const index = currentMode === 'vhf' ? vhfIndex : uhfIndex;
+            const nextIndex = (index + 1) % (list.length + 1);
+            if (nextIndex === 0) return null;   // next click goes to the guide
+            const ch = list[nextIndex - 1];
+            return ch ? document.getElementById(ch.id) : null;
+        }
+
+        function pretuneNext() {
+            const section = nextChannelSection();
+            if (!section) return;
+            section.querySelectorAll('.player-slot').forEach(slot => { if (!slot._player) createPlayer(slot); });
         }
 
         function setAllVolumes() {
-            mountedPlayers.forEach(p => { try { p.setVolume(); } catch (e) {} });
+            players.forEach(p => { if (p.live) { try { p.setVolume(); } catch (e) {} } });
         }
 
         // ---- YouTube ----
-        async function mountYouTube(slot, token) {
+        function createYouTubePlayer(slot) {
             const id = slot.dataset.id;
-            const reveal = beginLocking(slot);
-            const apiOK = await loadYouTubeAPI();
-            if (token !== mountToken) return;   // channel changed while loading
+            const entry = { slot, live: false, token: 0 };
+            let player = null;
+            let fallbackFrame = false;
+            let phase = 'loading';      // loading -> parking -> parked | live-seeking -> live
+            let reveal = () => {};
+            const S = () => window.YT.PlayerState;
 
-            if (!apiOK) {
-                // YouTube's API didn't load: fall back to a plain looping embed (no sync)
-                slot.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&playsinline=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
-                mountedPlayers.push({ destroy() { slot.innerHTML = ''; }, setVolume() {} });
-                reveal();
-                return;
-            }
-
-            const holder = document.createElement('div');
-            slot.appendChild(holder);
-            let phase = 'start';   // start -> seeking -> live
-            const applyVolume = (pl) => {
-                if (volumeLevel === 0) pl.mute();
-                else { pl.unMute(); pl.setVolume(VOLUME_STEPS[volumeLevel]); }
+            const applyVolume = () => {
+                if (!player) return;
+                if (volumeLevel === 0) player.mute();
+                else { player.unMute(); player.setVolume(VOLUME_STEPS[volumeLevel]); }
             };
-            const player = new YT.Player(holder, {
-                videoId: id,
-                width: '100%',
-                height: '100%',
-                playerVars: { autoplay: 1, mute: 1, controls: 0, playsinline: 1, rel: 0, disablekb: 1, iv_load_policy: 3, fs: 0 },
-                events: {
-                    onReady: e => {
-                        if (token !== mountToken) return;
-                        e.target.playVideo();
-                    },
-                    onStateChange: e => {
-                        if (token !== mountToken) return;
-                        const S = YT.PlayerState;
-                        if (e.data === S.PLAYING && phase === 'start') {
-                            phase = 'seeking';
-                            e.target.seekTo(broadcastOffset(e.target.getDuration()), true);
-                            applyVolume(e.target);
-                            // If the browser refused sound, it pauses the video: go back to muted
-                            setTimeout(() => {
-                                if (token !== mountToken) return;
-                                if (volumeLevel > 0 && e.target.getPlayerState() !== S.PLAYING) {
-                                    e.target.mute();
-                                    e.target.playVideo();
-                                    showOSD('TURN VOL FOR SOUND', 3000);
-                                }
-                            }, 1500);
-                        } else if (e.data === S.PLAYING && phase === 'seeking') {
-                            phase = 'live';
-                            reveal();
-                        } else if (e.data === S.ENDED) {
-                            e.target.seekTo(0, true);
-                            e.target.playVideo();
-                        }
-                    },
-                    onError: () => reveal()
+
+            const startLive = () => {
+                phase = 'live-seeking';
+                player.seekTo(broadcastOffset(player.getDuration()), true);
+                applyVolume();
+                player.playVideo();
+                const token = entry.token;
+                // If the browser refused sound, it pauses the video: go back to muted
+                setTimeout(() => {
+                    if (!entry.live || token !== mountToken || !player) return;
+                    if (volumeLevel > 0 && player.getPlayerState() !== S().PLAYING) {
+                        player.mute();
+                        player.playVideo();
+                        showOSD('TURN VOL FOR SOUND', 3000);
+                    }
+                }, 1500);
+            };
+
+            entry.goLive = (token) => {
+                entry.live = true;
+                entry.token = token;
+                if (phase === 'live') return;
+                reveal = beginLocking(slot);
+                if (fallbackFrame) { reveal(); return; }
+                if (player && (phase === 'parked' || phase === 'parking')) startLive();
+                // still 'loading': onReady sees entry.live and starts it
+            };
+            entry.setVolume = () => { applyVolume(); if (volumeLevel > 0 && player) player.playVideo(); };
+            entry.destroy = () => { if (player) player.destroy(); player = null; };
+
+            loadYouTubeAPI().then(apiOK => {
+                if (!players.has(entry)) return;   // channel changed while loading
+                if (!apiOK) {
+                    // YouTube's API didn't load: plain looping embed (no sync), only when live
+                    fallbackFrame = true;
+                    slot.innerHTML = `<iframe src="https://www.youtube.com/embed/${id}?autoplay=1&mute=1&loop=1&playlist=${id}&controls=0&playsinline=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                    reveal();
+                    return;
                 }
+                const holder = document.createElement('div');
+                slot.appendChild(holder);
+                player = new YT.Player(holder, {
+                    videoId: id,
+                    width: '100%',
+                    height: '100%',
+                    playerVars: { autoplay: 0, mute: 1, controls: 0, playsinline: 1, rel: 0, disablekb: 1, iv_load_policy: 3, fs: 0 },
+                    events: {
+                        onReady: e => {
+                            if (!players.has(entry)) return;
+                            if (entry.live) { startLive(); return; }
+                            // Pre-tune: start muted at the broadcast spot so it buffers, then pause
+                            phase = 'parking';
+                            e.target.mute();
+                            e.target.seekTo(broadcastOffset(e.target.getDuration()) + 2, true);
+                        },
+                        onStateChange: e => {
+                            if (!players.has(entry)) return;
+                            if (e.data === S().PLAYING) {
+                                if (phase === 'parking') {
+                                    if (entry.live) { startLive(); }
+                                    else { e.target.pauseVideo(); phase = 'parked'; }
+                                } else if (phase === 'live-seeking') {
+                                    phase = 'live';
+                                    reveal();
+                                }
+                            } else if (e.data === S().ENDED) {
+                                e.target.seekTo(0, true);
+                                e.target.playVideo();
+                            }
+                        },
+                        onError: () => reveal()
+                    }
+                });
             });
-            mountedPlayers.push({
-                destroy() { player.destroy(); },
-                setVolume() { applyVolume(player); if (volumeLevel > 0) player.playVideo(); }
-            });
+            return entry;
         }
 
         // ---- Archive.org ----
-        function mountArchive(slot, token) {
+        function createArchivePlayer(slot) {
             const id = slot.dataset.id;
             const file = slot.dataset.file;
+            const entry = { slot, live: false, token: 0 };
+            let reveal = () => {};
+            let refreshTimer = null;
+            let usingEmbed = false;
 
             const useEmbed = () => {
                 // No direct file (or it failed): archive.org's own player, no sync
+                usingEmbed = true;
+                clearInterval(refreshTimer);
                 slot.innerHTML = `<iframe src="https://archive.org/embed/${id}" title="${escapeAttr(slot.dataset.title || id)}" allowfullscreen></iframe>`;
                 slot.querySelector('iframe').style.pointerEvents = 'auto';   // their player needs clicks
-                mountedPlayers.push({ destroy() { slot.innerHTML = ''; }, setVolume() {} });
+                reveal();
             };
 
-            if (!isArchiveFileUrl(file)) { useEmbed(); return; }
+            entry.setVolume = () => {};
+            entry.destroy = () => {};
+            if (!isArchiveFileUrl(file)) {
+                // Embed only loads when the channel is actually on screen
+                entry.goLive = () => { entry.live = true; if (!usingEmbed) useEmbed(); };
+                return entry;
+            }
 
-            // Big files can take a while to reach the middle of the film: hold the static up to 25s
-            const reveal = beginLocking(slot, 25000);
             const video = document.createElement('video');
             video.playsInline = true;
             video.loop = true;
             video.preload = 'auto';
             video.muted = true;
+            let metadataReady = false;
+
             const applyVolume = () => {
                 video.volume = VOLUME_STEPS[volumeLevel] / 100;
                 video.muted = volumeLevel === 0;
             };
-
-            video.addEventListener('loadedmetadata', () => {
-                if (token !== mountToken) return;
+            const park = () => {
+                // Pre-tuned: sit paused a few seconds ahead of the broadcast so that part downloads
+                if (!entry.live && metadataReady) video.currentTime = broadcastOffset(video.duration) + 3;
+            };
+            const startLive = () => {
+                clearInterval(refreshTimer);
+                const token = entry.token;
                 video.currentTime = broadcastOffset(video.duration);
                 applyVolume();
-                video.play().catch(() => {
+                // Clear the black only once a real frame is on screen
+                const onFrame = () => { if (token === mountToken) reveal(); };
+                video.play().then(() => {
+                    if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(onFrame);
+                    else onFrame();
+                }).catch(() => {
                     // Browser blocked sound: play muted and say how to get sound
                     video.muted = true;
-                    video.play().catch(() => {});
+                    video.play().then(() => {
+                        if ('requestVideoFrameCallback' in video) video.requestVideoFrameCallback(onFrame);
+                        else onFrame();
+                    }).catch(() => {});
                     if (volumeLevel > 0) showOSD('TURN VOL FOR SOUND', 3000);
                 });
-            }, { once: true });
-            // Only clear the static once a picture is actually on screen (no black gap)
-            video.addEventListener('playing', () => {
-                if (token !== mountToken) return;
-                if ('requestVideoFrameCallback' in video) {
-                    video.requestVideoFrameCallback(() => { if (token === mountToken) reveal(); });
-                } else {
-                    const onTime = () => {
-                        if (video.readyState >= 3) { video.removeEventListener('timeupdate', onTime); if (token === mountToken) reveal(); }
-                    };
-                    video.addEventListener('timeupdate', onTime);
-                }
+            };
+
+            video.addEventListener('loadedmetadata', () => {
+                if (!players.has(entry)) return;
+                metadataReady = true;
+                if (entry.live) startLive();
+                else { park(); refreshTimer = setInterval(park, PRETUNE_REFRESH_MS); }
             }, { once: true });
             video.addEventListener('error', () => {
-                if (token !== mountToken) return;
+                if (!players.has(entry)) return;
                 video.removeAttribute('src');
-                useEmbed();
-                reveal();
+                if (entry.live) useEmbed(); else usingEmbed = true;   // live later -> embed
             }, { once: true });
+
+            entry.goLive = (token) => {
+                entry.live = true;
+                entry.token = token;
+                if (usingEmbed) { if (!slot.querySelector('iframe')) useEmbed(); return; }
+                // Big files can take a while to reach the middle of the film: wait up to 25s
+                reveal = beginLocking(slot, 25000);
+                if (metadataReady) startLive();   // pre-tuned: plays almost right away
+                // otherwise loadedmetadata starts it
+            };
+            entry.setVolume = () => { applyVolume(); if (volumeLevel > 0 && video.paused) video.play().catch(() => {}); };
+            entry.destroy = () => {
+                clearInterval(refreshTimer);
+                video.pause();
+                video.removeAttribute('src');
+                video.load();
+            };
 
             video.src = file;
             slot.appendChild(video);
-            mountedPlayers.push({
-                destroy() { video.pause(); video.removeAttribute('src'); video.load(); },
-                setVolume() { applyVolume(); if (volumeLevel > 0 && video.paused) video.play().catch(() => {}); }
-            });
+            return entry;
         }
 
         // ---- VOL knob ----
@@ -1478,6 +1580,8 @@ function updateDisplay() {
 
             generateContent();
             showVHFGuide();
+            // Pre-tune the first VHF channel so the first turn of the dial is quick too
+            pretuneTimer = setTimeout(pretuneNext, PRETUNE_DELAY_MS);
             lastMode = 'vhf';
 
             // Update guide times every minute
