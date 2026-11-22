@@ -1,4 +1,4 @@
-# Uploads the front end (index.html) to Neocities (warrencbennett.com)
+# Uploads the front end (index.html + og-image.png) to Neocities (warrencbennett.com)
 # whenever it changes on main. The backend (backend.py etc.) is deployed
 # separately by Render and is never sent to Neocities.
 #
@@ -12,6 +12,7 @@ on:
     branches: [main]
     paths:
       - index.html
+      - og-image.png
       - .github/workflows/deploy-neocities.yml
   workflow_dispatch:
 
@@ -33,6 +34,7 @@ jobs:
         run: |
           mkdir -p neocities-upload
           cp index.html neocities-upload/
+          cp og-image.png neocities-upload/   # link-preview picture
 
       - name: Upload to Neocities
         # bcomnes/deploy-to-neocities v3.0.6, pinned to an exact commit
