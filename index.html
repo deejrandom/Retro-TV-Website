@@ -236,8 +236,9 @@
         .player-slot iframe { pointer-events: none; }
         .player-slot video { object-fit: contain; }
 
-        /* Hidden while the set "locks on" to the broadcast; static shows through */
-        .player-slot.locking { visibility: hidden; }
+        /* Cable-style tuning: black while the channel loads, then the picture fades in */
+        .player-slot { transition: opacity 0.35s ease-in; }
+        .player-slot.locking { opacity: 0; transition: none; }
 
         /* Volume bar along the bottom of the screen, like an 80s set */
         #volOSD {
@@ -870,16 +871,15 @@
             return ytApiPromise;
         }
 
-        // Static on screen while the set locks on; reveal when synced (or give up waiting)
+        // Like cable: the screen stays black while the channel loads and syncs,
+        // then the picture fades in. (No static; that's only for empty channels.)
         function beginLocking(slot, maxWaitMs = 6000) {
             slot.classList.add('locking');
-            startStaticEffect();
             let done = false;
             const reveal = () => {
                 if (done) return;
                 done = true;
                 slot.classList.remove('locking');
-                if (!document.querySelector('.player-slot.locking')) stopStaticEffect();
             };
             setTimeout(reveal, maxWaitMs);   // safety net if the video never starts
             return reveal;
