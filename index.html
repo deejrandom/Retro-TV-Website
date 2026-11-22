@@ -662,6 +662,7 @@
                 const data = await res.json();
                 if (!data || !Array.isArray(data.vhf) || !Array.isArray(data.uhf)) throw new Error('Bad schedule data');
                 scheduleData = data;
+                normalizeLegacyChannels(scheduleData);
                 return true;
             } catch (err) {
                 console.error("Failed to load schedule from backend.", err);
@@ -669,6 +670,18 @@
             } finally {
                 clearTimeout(timer);
             }
+        }
+
+        // Old-style channels stored an Archive.org <iframe> in ch.content.html.
+        // Turn that into a normal archive media item, once, as soon as the lineup loads,
+        // so the guide, the NO SIGNAL check and the players all treat it the same.
+        function normalizeLegacyChannels(data) {
+            [...data.vhf, ...data.uhf].forEach(ch => {
+                if ((!ch.media || ch.media.length === 0) && ch.content && ch.content.type === 'embed') {
+                    const legacyId = getArchiveId(ch.content.html);
+                    if (legacyId) ch.media = [{ type: 'archive', title: ch.schedule || '', url: legacyId }];
+                }
+            });
         }
 
         // Big text on the static screen (NO SIGNAL, TUNING..., SIGNAL LOST)
@@ -1074,12 +1087,6 @@ function startAutoScrollTextBlocks() {
 
                 const channelNumber = index + 2;
                 const channelHeader = `<h2 class="channel-title">${band.toUpperCase()} ${channelNumber} • ${escapeHtml(ch.name)}</h2>`;
-                // Old-style channels stored an Archive.org <iframe> in ch.content.html.
-                // Turn that into a normal archive media item so it plays.
-                if ((!ch.media || ch.media.length === 0) && ch.content && ch.content.type === 'embed') {
-                    const legacyId = getArchiveId(ch.content.html);
-                    if (legacyId) ch = { ...ch, media: [{ type: 'archive', title: ch.schedule || '', url: legacyId }] };
-                }
                 const hasMedia = ch.media && ch.media.length > 0;
 
                 let contentHTML = '';
