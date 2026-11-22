@@ -252,6 +252,26 @@
         /* Live-broadcast players: like a real TV, you can't click to pause */
         .player-slot iframe { pointer-events: none; }
         .player-slot video { object-fit: contain; }
+        .player-slot { cursor: zoom-in; }
+
+        /* Full screen: the real browser full screen where allowed, or a full-window
+           cover (iPhone) that works the same way. Tap again to come back. */
+        .player-slot:fullscreen { cursor: zoom-out; background: #000; border: none; }
+        .player-slot.big {
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            width: 100vw;
+            height: 100dvh;
+            max-height: none;
+            aspect-ratio: auto;
+            margin: 0;
+            border: none;
+            background: #000;
+            cursor: zoom-out;
+        }
+        .player-slot.big video,
+        .player-slot:fullscreen video { object-fit: contain; }
 
         /* Cable-style tuning: black while the channel loads, then the picture fades in */
         .player-slot { transition: opacity 0.15s ease-in; }
@@ -702,6 +722,14 @@
             #volOSD { bottom: 14px; gap: 8px; padding: 6px 10px; font-size: 20px; letter-spacing: 2px; }
             #volOSD .vol-bar { gap: 4px; }
             #volOSD .vol-bar i { width: 20px; height: 12px; }
+
+            /* Video channels: slimmer frame so the picture gets ~15% bigger */
+            body.video-on { padding: 4px; }
+            body.video-on .tv-frame { padding: 0 8px 10px; gap: 10px; }
+            body.video-on .screen { border-width: 6px; }
+            body.video-on .content { padding: 10px 4px 8px; }
+            body.video-on .video-container { border: none; margin-bottom: 6px; }
+            body.video-on .channel-title { margin: 0 6px 8px; }
         }
     </style>
 </head>
@@ -1129,11 +1157,56 @@
             }
         }
 
+        // ---- Full screen (tap the picture; tap again to come back) ----
+        let bigSlot = null;
+        const canRealFullscreen = !!(document.fullscreenEnabled && Element.prototype.requestFullscreen);
+
+        function enterBig(slot) {
+            bigSlot = slot;
+            if (canRealFullscreen) {
+                slot.requestFullscreen().catch(() => slot.classList.add('big'));
+            } else {
+                slot.classList.add('big');   // iPhone: cover the whole window instead
+            }
+        }
+
+        function exitBig() {
+            if (!bigSlot) return;
+            bigSlot.classList.remove('big');
+            if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+            bigSlot = null;
+        }
+
+        document.addEventListener('fullscreenchange', () => {
+            // Left full screen with Esc / the back gesture
+            if (!document.fullscreenElement && bigSlot && !bigSlot.classList.contains('big')) bigSlot = null;
+        });
+
+        document.addEventListener('click', e => {
+            const slot = e.target.closest && e.target.closest('.player-slot');
+            if (!slot || !slot._player || !slot._player.live) return;
+            if (slot.querySelector('iframe[src*="archive.org/embed"]')) return;   // archive.org's own player has its own button
+            if (bigSlot === slot) exitBig(); else enterBig(slot);
+        });
+
+        // First video channel on a phone: say you can tap it (once per browser)
+        function maybeShowTapHint() {
+            if (!window.matchMedia('(max-width: 700px)').matches) return;
+            try {
+                if (localStorage.getItem('rtv_tap_hint')) return;
+                localStorage.setItem('rtv_tap_hint', '1');
+            } catch (e) { return; }
+            setTimeout(() => showOSD('TAP PICTURE: FULL SCREEN', 3500), 1500);
+        }
+
         // Called on every channel change with the section now on screen
         function mountPlayers(section) {
             const token = ++mountToken;
             clearTimeout(pretuneTimer);
+            exitBig();
             const liveSlots = section ? [...section.querySelectorAll('.player-slot')] : [];
+            document.body.classList.toggle('video-on', liveSlots.length > 0);
+            if (liveSlots.length) maybeShowTapHint();
             // Drop every player that isn't on the new channel
             [...players].forEach(entry => { if (!liveSlots.includes(entry.slot)) destroyPlayer(entry); });
             // Bring the new channel live, reusing a pre-tuned player if there is one
@@ -1251,6 +1324,10 @@
                             } else if (e.data === S().ENDED) {
                                 e.target.seekTo(0, true);
                                 e.target.playVideo();
+                            } else if (e.data === S().PAUSED && phase === 'live' && entry.live) {
+                                // It's TV: no pausing. Pick the broadcast back up where it is now.
+                                e.target.seekTo(broadcastOffset(e.target.getDuration()), true);
+                                e.target.playVideo();
                             }
                         },
                         onError: () => reveal()
@@ -1344,12 +1421,32 @@
                 // otherwise loadedmetadata starts it
             };
             entry.setVolume = () => { applyVolume(); if (volumeLevel > 0 && video.paused) video.play().catch(() => {}); };
+            let destroyed = false;
             entry.destroy = () => {
+                destroyed = true;
                 clearInterval(refreshTimer);
                 video.pause();
                 video.removeAttribute('src');
                 video.load();
             };
+
+            // It's TV: no pausing. If something pauses a live film (a phone's own
+            // full-screen player, leaving full screen), rejoin the broadcast where it is now.
+            video.addEventListener('pause', () => {
+                if (destroyed || !entry.live || document.hidden) return;
+                setTimeout(() => {
+                    if (destroyed || !entry.live || !video.paused || document.hidden) return;
+                    video.currentTime = broadcastOffset(video.duration);
+                    video.play().catch(() => {});
+                }, 400);
+            });
+            document.addEventListener('visibilitychange', () => {
+                // Coming back to the tab: catch up to the broadcast
+                if (!document.hidden && !destroyed && entry.live && metadataReady) {
+                    video.currentTime = broadcastOffset(video.duration);
+                    video.play().catch(() => {});
+                }
+            });
 
             video.src = file;
             slot.appendChild(video);
