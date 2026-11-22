@@ -22,6 +22,10 @@ Videos play like cable: a channel's video only loads while you're tuned to it, a
 - **YouTube:** controlled through YouTube's player API.
 - **Archive.org:** the admin panel looks up the film's MP4 file on archive.org when you add it (📡 live). Items without a file use archive.org's own player (no sync); click **Make live** to fix them.
 
+## Phones
+
+On screens up to 700px wide the TV becomes an 80s pocket set: tall screen with a silver bezel, a top bezel with a red power light, a VHF/UHF switch, ◀ ▶ channel buttons, the silver VOL dial, and a nameplate with a speaker grille. Swipe the screen left/right to change channel. Desktop is unchanged.
+
 ## Backups
 
 - **On Render:** every save keeps a copy of the previous lineup in `/data/backups/` (newest 30). Restore or download them from the **Backups** section in `/admin`.
